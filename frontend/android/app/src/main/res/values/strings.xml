@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Asan Captain</string>
+    <string name="title_activity_main">Asan Captain</string>
+    <string name="package_name">com.asan.driver</string>
+    <string name="custom_url_scheme">com.asan.driver</string>
+</resources>

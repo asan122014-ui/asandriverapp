@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "982270543420",
+    "project_id": "asan-driver-e8a38",
+    "storage_bucket": "asan-driver-e8a38.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:982270543420:android:04d280106b0a20d6b62539",
+        "android_client_info": {
+          "package_name": "com.asan.driver"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4v-j_4eNgom_LdBjaPnulwjJQ83fUaTw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

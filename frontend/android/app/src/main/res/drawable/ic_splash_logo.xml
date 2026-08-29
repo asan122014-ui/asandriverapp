@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Dedicated Splash Screen Logo wrapper -->
+    <!-- Constraining to 120dp ensures the text isn't clipped by the circular mask on Android 12+ -->
+    <item
+        android:width="120dp"
+        android:height="120dp"
+        android:gravity="center">
+        <bitmap
+            android:src="@drawable/ic_splash_logo_content"
+            android:gravity="center"
+            android:filter="true" />
+    </item>
+</layer-list>

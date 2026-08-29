@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="splash_yellow">#f9b71e</color>
+    <color name="colorPrimary">#f9b71e</color>
+    <color name="colorPrimaryDark">#c28a00</color>
+    <color name="colorAccent">#f9b71e</color>
+</resources>

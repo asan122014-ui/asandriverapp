@@ -1,0 +1,57 @@
+#root {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+/* =========================================================
+   GLOBAL APP BEHAVIOR
+========================================================= */
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+}
+
+/* =========================================================
+   MEDIA
+========================================================= */
+
+img,
+video,
+canvas {
+  max-width: 100%;
+  display: block;
+}
+
+/* =========================================================
+   BUTTONS / INPUTS
+========================================================= */
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* =========================================================
+   MOBILE TAP BEHAVIOR
+========================================================= */
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}

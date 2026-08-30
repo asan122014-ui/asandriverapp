@@ -77,39 +77,61 @@ function App() {
     useLocation();
 
   /* =======================================================
-     SCROLL TO TOP ON EVERY PAGE CHANGE
+     SCROLL TO TOP ON PAGE CHANGE
   ======================================================= */
 
   useEffect(() => {
-    /*
-      Every route should behave like a fresh screen.
+    const scrollToTop =
+      () => {
+        window.scrollTo({
+          top: 0,
+          left: 0,
+          behavior: "auto",
+        });
 
-      Example:
+        if (
+          document.documentElement
+        ) {
+          document.documentElement.scrollTop =
+            0;
 
-      /profile
-          ↓
-      /help-support
+          document.documentElement.scrollLeft =
+            0;
+        }
 
-      Even if Profile was scrolled down,
-      Help & Support will start from the top.
-    */
+        if (
+          document.body
+        ) {
+          document.body.scrollTop =
+            0;
 
-    window.scrollTo({
-      top: 0,
-      left: 0,
-      behavior: "instant",
-    });
+          document.body.scrollLeft =
+            0;
+        }
+      };
 
-    /*
-      Extra fallback for Android WebView /
-      Capacitor / some mobile browsers.
-    */
+    scrollToTop();
 
-    document.documentElement.scrollTop =
-      0;
+    const frame =
+      requestAnimationFrame(
+        scrollToTop
+      );
 
-    document.body.scrollTop =
-      0;
+    const timeout =
+      window.setTimeout(
+        scrollToTop,
+        50
+      );
+
+    return () => {
+      cancelAnimationFrame(
+        frame
+      );
+
+      window.clearTimeout(
+        timeout
+      );
+    };
   }, [
     location.pathname,
   ]);
@@ -118,23 +140,10 @@ function App() {
      CURRENT DRIVER SESSION
   ======================================================= */
 
-  /*
-    Re-read localStorage whenever the route changes.
-
-    This is important because DriverLogin stores:
-
-    accessToken
-    driver
-
-    immediately before navigating.
-
-    Without this, App.jsx could continue using stale
-    authentication information until a full refresh.
-  */
-
   const {
     driver,
     accessToken,
+    rejectionData,
   } =
     useMemo(() => {
       const token =
@@ -147,59 +156,102 @@ function App() {
           "driver"
         );
 
+      const storedRejection =
+        localStorage.getItem(
+          "rejectionData"
+        );
+
+      let parsedDriver =
+        null;
+
+      let parsedRejection =
+        null;
+
+      /* =====================================================
+         DRIVER
+      ===================================================== */
+
       if (
-        !storedDriver
+        storedDriver
       ) {
-        return {
-          driver:
-            null,
-
-          accessToken:
-            token,
-        };
-      }
-
-      try {
-        return {
-          driver:
+        try {
+          parsedDriver =
             JSON.parse(
               storedDriver
-            ),
-
-          accessToken:
-            token,
-        };
-      } catch (
-        error
-      ) {
-        console.error(
-          "Invalid stored Driver data:",
+            );
+        } catch (
           error
-        );
+        ) {
+          console.error(
+            "Invalid stored Driver data:",
+            error
+          );
 
-        localStorage.removeItem(
-          "driver"
-        );
-
-        localStorage.removeItem(
-          "accessToken"
-        );
-
-        localStorage.removeItem(
-          "refreshToken"
-        );
-
-        return {
-          driver:
-            null,
-
-          accessToken:
-            null,
-        };
+          localStorage.removeItem(
+            "driver"
+          );
+        }
       }
+
+      /* =====================================================
+         REJECTION
+      ===================================================== */
+
+      if (
+        storedRejection
+      ) {
+        try {
+          parsedRejection =
+            JSON.parse(
+              storedRejection
+            );
+        } catch (
+          error
+        ) {
+          console.error(
+            "Invalid stored Driver rejection data:",
+            error
+          );
+
+          localStorage.removeItem(
+            "rejectionData"
+          );
+        }
+      }
+
+      return {
+        driver:
+          parsedDriver,
+
+        accessToken:
+          token,
+
+        rejectionData:
+          parsedRejection,
+      };
     }, [
       location.pathname,
     ]);
+
+  /* =======================================================
+     DRIVER STATUS
+  ======================================================= */
+
+  const driverStatus =
+    String(
+      driver?.status ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
+
+  const hasRejectedState =
+    driverStatus ===
+      "rejected" ||
+    Boolean(
+      rejectionData
+        ?.rejectionReason
+    );
 
   /* =======================================================
      DEFAULT AUTH ROUTE
@@ -207,32 +259,72 @@ function App() {
 
   const defaultRoute =
     useMemo(() => {
+      /* =====================================================
+         NO TOKEN
+      ===================================================== */
+
       if (
-        !accessToken ||
-        !driver
+        !accessToken
       ) {
         return "/DriverLogin";
       }
 
+      /* =====================================================
+         REJECTION STATE
+
+         The Driver document may already be deleted from
+         MongoDB, but the old JWT still exists locally.
+
+         VerificationPending will call:
+
+         GET /api/driver-auth/rejection-status
+
+         and display the rejection reason.
+      ===================================================== */
+
       if (
-        driver.status ===
+        hasRejectedState
+      ) {
+        return "/verification-pending";
+      }
+
+      /* =====================================================
+         TOKEN EXISTS BUT DRIVER LOCAL DATA IS MISSING
+
+         Do not immediately throw the Driver to Sign In.
+
+         VerificationPending can check the backend using the
+         existing Driver JWT and determine whether the account
+         was rejected.
+      ===================================================== */
+
+      if (
+        !driver
+      ) {
+        return "/verification-pending";
+      }
+
+      /* =====================================================
+         APPROVED
+      ===================================================== */
+
+      if (
+        driverStatus ===
         "approved"
       ) {
         return "/dashboard";
       }
 
-      /*
-        Pending and rejected Drivers currently use
-        VerificationPending.
-
-        If a separate rejection screen is created later,
-        route rejected Drivers there instead.
-      */
+      /* =====================================================
+         PENDING / LEGACY REJECTED / UNKNOWN
+      ===================================================== */
 
       return "/verification-pending";
     }, [
       accessToken,
       driver,
+      driverStatus,
+      hasRejectedState,
     ]);
 
   /* =======================================================
@@ -257,22 +349,21 @@ function App() {
 
   useEffect(() => {
     /*
-      An authenticated Driver may register an FCM token.
+      FCM registration is useful while:
 
-      Pending Drivers are also allowed because they may need
-      to receive approval/rejection notifications.
+      - Driver is pending
+      - Driver is approved
 
-      Backend:
-
-      POST /api/driver/save-token
-
-      Authorization:
-      Bearer <Driver JWT>
+      Once the application is rejected, the original Driver
+      record is removed. Do not try to save new FCM tokens to
+      a deleted Driver account.
     */
 
     if (
       !driver?._id ||
-      !accessToken
+      !accessToken ||
+      driverStatus ===
+        "rejected"
     ) {
       return;
     }
@@ -311,13 +402,6 @@ function App() {
             return;
           }
 
-          /*
-            axiosInstance automatically attaches:
-
-            Authorization:
-            Bearer <accessToken>
-          */
-
           const response =
             await axios.post(
               "/driver/save-token",
@@ -347,6 +431,12 @@ function App() {
           ) {
             return;
           }
+
+          /*
+            If the Driver has just been rejected while this
+            request is in flight, the backend may correctly
+            report that the Driver no longer exists.
+          */
 
           console.error(
             "FCM token save failed:",
@@ -589,6 +679,7 @@ function App() {
     };
   }, [
     driver?._id,
+    driverStatus,
     accessToken,
   ]);
 
@@ -648,6 +739,7 @@ function App() {
       />
 
       <Routes>
+
         {/* =================================================
             ROOT
         ================================================= */}
@@ -676,13 +768,26 @@ function App() {
         />
 
         {/* =================================================
-            VERIFICATION STATUS
+            VERIFICATION / REJECTION STATUS
+
+            Keep this route outside ProtectedRoute.
+
+            A rejected Driver's original Driver MongoDB
+            document no longer exists, so ProtectedRoute must
+            not prevent this page from loading.
         ================================================= */}
 
         <Route
           path="/verification-pending"
           element={
-            <VerificationPending />
+            accessToken ? (
+              <VerificationPending />
+            ) : (
+              <Navigate
+                to="/DriverLogin"
+                replace
+              />
+            )
           }
         />
 
@@ -827,6 +932,7 @@ function App() {
             />
           }
         />
+
       </Routes>
     </>
   );

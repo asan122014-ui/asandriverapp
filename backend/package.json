@@ -1,0 +1,43 @@
+{
+  "name": "asan-backend",
+  "version": "1.0.0",
+  "description": "ASAN Backend API",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js"
+  },
+  "keywords": [
+    "asan",
+    "backend",
+    "node",
+    "express"
+  ],
+  "author": "ASAN",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.11.0",
+    "bcryptjs": "^3.0.3",
+    "cloudinary": "^1.41.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.0",
+    "express-validator": "^7.3.1",
+    "firebase-admin": "^13.7.0",
+    "joi": "^18.0.2",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.2.3",
+    "multer": "^2.1.0",
+    "multer-storage-cloudinary": "^4.0.0",
+    "node-cron": "^4.2.1",
+    "node-geocoder": "^4.4.1",
+    "resend": "^3.5.0",
+    "sharp": "^0.33.0",
+    "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

@@ -16,7 +16,6 @@ import {
   GoogleMap,
   DirectionsRenderer,
   Marker,
-  useJsApiLoader,
 } from "@react-google-maps/api";
 
 import {
@@ -286,22 +285,17 @@ function ActiveTripScreen({
     useNavigate();
 
   /* =======================================================
-     GOOGLE MAP LOADER
+     GOOGLE MAPS
+
+     App.jsx owns the single Google Maps loader. This screen
+     renders only after that loader has completed.
   ======================================================= */
 
-  const {
-    isLoaded:
-      mapsLoaded,
+  const mapsLoaded =
+    typeof window !== "undefined" &&
+    Boolean(window.google?.maps);
 
-    loadError:
-      mapsLoadError,
-  } = useJsApiLoader({
-    id:
-      "asan-driver-active-trip-map",
-
-    googleMapsApiKey:
-      GOOGLE_KEY || "",
-  });
+  const mapsLoadError = null;
 
   /* =======================================================
      STATE

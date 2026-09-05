@@ -92,7 +92,7 @@ const END_TRIP_RADIUS_METERS =
    HELPERS
 ========================================================= */
 
-const isEvening = () =>
+const isEveningNow = () =>
   new Date().getHours() >= 12;
 
 /* =========================================================
@@ -373,6 +373,16 @@ function ActiveTripScreen({
   ] = useState(null);
 
   const [
+    activeTripType,
+    setActiveTripType,
+  ] = useState(null);
+
+  const [
+    processingTripId,
+    setProcessingTripId,
+  ] = useState(null);
+
+  const [
     selectedTrip,
     setSelectedTrip,
   ] = useState(null);
@@ -431,9 +441,6 @@ function ActiveTripScreen({
   const foregroundWatchId =
     useRef(null);
 
-  const distanceServiceRef =
-    useRef(null);
-
   const directionsServiceRef =
     useRef(null);
 
@@ -454,6 +461,18 @@ function ActiveTripScreen({
 
   const lastDriverPosition =
     useRef(null);
+
+  const lastRouteDestination =
+    useRef(null);
+
+  const isEveningTrip =
+    useCallback(
+      () =>
+        activeTripType
+          ? activeTripType === "afternoon"
+          : isEveningNow(),
+      [activeTripType]
+    );
 
   /*
    * Final real ride destination.
@@ -580,13 +599,6 @@ function ActiveTripScreen({
     }
 
     if (
-      !distanceServiceRef.current
-    ) {
-      distanceServiceRef.current =
-        new window.google.maps.DistanceMatrixService();
-    }
-
-    if (
       !directionsServiceRef.current
     ) {
       directionsServiceRef.current =
@@ -619,16 +631,16 @@ function ActiveTripScreen({
           tripPhase ===
           "pickup"
         ) {
-          return isEvening()
+          return isEveningTrip()
             ? student.dropLocationCoords
             : student.location;
         }
 
-        return isEvening()
+        return isEveningTrip()
           ? student.location
           : student.dropLocationCoords;
       },
-      [tripPhase]
+      [tripPhase, isEveningTrip]
     );
 
   /* =======================================================
@@ -654,7 +666,7 @@ function ActiveTripScreen({
         }
 
         const coords =
-          isEvening()
+          isEveningTrip()
             ? student.location
             : student.dropLocationCoords;
 
@@ -681,7 +693,7 @@ function ActiveTripScreen({
             ),
         };
       },
-      []
+      [isEveningTrip]
     );
 
   /* =======================================================
@@ -1576,6 +1588,10 @@ function ActiveTripScreen({
             const trip =
               activeTrips[0];
 
+            setActiveTripType(
+              trip.tripType || null
+            );
+
             if (
               trip.startTime
             ) {
@@ -1611,10 +1627,7 @@ function ActiveTripScreen({
       ) => {
         if (
           !studentsList.length ||
-          !mapsLoaded ||
-          !window.google
-            ?.maps ||
-          !distanceServiceRef.current
+          !origin
         ) {
           return null;
         }
@@ -1646,136 +1659,49 @@ function ActiveTripScreen({
           return null;
         }
 
-        const destinations =
-          validStudents.map(
-            (
-              student
-            ) => {
+        const nearest =
+          validStudents.reduce(
+            (best, student) => {
               const coords =
-                getCoords(
-                  student
+                getCoords(student);
+
+              const distance =
+                calculateDistanceMeters(
+                  origin,
+                  coords
                 );
 
-              return new window.google.maps.LatLng(
-                Number(
-                  coords.lat
-                ),
+              if (
+                !Number.isFinite(distance)
+              ) {
+                return best;
+              }
 
-                Number(
-                  coords.lng
-                )
-              );
-            }
+              if (
+                !best ||
+                distance < best.distance
+              ) {
+                return {
+                  student,
+                  distance,
+                };
+              }
+
+              return best;
+            },
+            null
           );
 
-        return new Promise(
-          (
-            resolve
-          ) => {
-            distanceServiceRef.current.getDistanceMatrix(
-              {
-                origins: [
-                  new window.google.maps.LatLng(
-                    Number(
-                      origin.lat
-                    ),
-
-                    Number(
-                      origin.lng
-                    )
-                  ),
-                ],
-
-                destinations,
-
-                travelMode:
-                  window.google.maps
-                    .TravelMode
-                    .DRIVING,
-
-                drivingOptions:
-                  {
-                    departureTime:
-                      new Date(),
-
-                    trafficModel:
-                      window.google.maps
-                        .TrafficModel
-                        .BEST_GUESS,
-                  },
-              },
-
-              (
-                response,
-                status
-              ) => {
-                if (
-                  status !==
-                    "OK" ||
-                  !response?.rows
-                    ?.length
-                ) {
-                  resolve(
-                    null
-                  );
-
-                  return;
-                }
-
-                let min =
-                  Infinity;
-
-                let index =
-                  -1;
-
-                response.rows[0].elements.forEach(
-                  (
-                    element,
-                    i
-                  ) => {
-                    if (
-                      element.status ===
-                        "OK" &&
-                      element.duration
-                        ?.value <
-                        min
-                    ) {
-                      min =
-                        element.duration.value;
-
-                      index =
-                        i;
-                    }
-                  }
-                );
-
-                if (
-                  index === -1
-                ) {
-                  resolve(
-                    null
-                  );
-
-                  return;
-                }
-
-                resolve({
-                  ...validStudents[
-                    index
-                  ],
-
-                  phase:
-                    tripPhase,
-                });
-              }
-            );
-          }
-        );
+        return nearest
+          ? {
+              ...nearest.student,
+              phase: tripPhase,
+            }
+          : null;
       },
       [
         tripPhase,
         getCoords,
-        mapsLoaded,
       ]
     );
 
@@ -1804,7 +1730,15 @@ function ActiveTripScreen({
         /*
          * Avoid route refresh for tiny GPS movement.
          */
+        const destinationKey =
+          `${Number(destination.lat).toFixed(6)},${Number(destination.lng).toFixed(6)}`;
+
+        const destinationChanged =
+          lastRouteDestination.current !==
+          destinationKey;
+
         if (
+          !destinationChanged &&
           lastDriverPosition.current
         ) {
           const moved =
@@ -1832,6 +1766,9 @@ function ActiveTripScreen({
                 origin.lng
               ),
           };
+
+        lastRouteDestination.current =
+          destinationKey;
 
         const now =
           Date.now();
@@ -1900,6 +1837,15 @@ function ActiveTripScreen({
               !response?.routes
                 ?.length
             ) {
+              console.error(
+                "Directions route failed:",
+                status,
+                {
+                  origin,
+                  destination,
+                }
+              );
+
               return;
             }
 
@@ -2245,6 +2191,34 @@ function ActiveTripScreen({
   ]);
 
   /* =======================================================
+     ROUTE TO FINAL LOCATION
+  ======================================================= */
+
+  useEffect(() => {
+    if (
+      !allStudentsCompleted ||
+      allAbsent ||
+      !driverLocation ||
+      !mapsLoaded ||
+      !lastRideLocationRef.current
+    ) {
+      return;
+    }
+
+    calculateRoute(
+      driverLocation,
+      lastRideLocationRef.current
+    );
+  }, [
+    allStudentsCompleted,
+    allAbsent,
+    driverLocation,
+    mapsLoaded,
+    calculateRoute,
+    students,
+  ]);
+
+  /* =======================================================
      STOP CAMERA
   ======================================================= */
 
@@ -2377,6 +2351,10 @@ function ActiveTripScreen({
           );
 
           setTripStartTime(
+            null
+          );
+
+          setActiveTripType(
             null
           );
 
@@ -3188,6 +3166,9 @@ function ActiveTripScreen({
           null
         );
 
+        lastRouteDestination.current =
+          null;
+
         setNextStudent(
           null
         );
@@ -3325,7 +3306,7 @@ function ActiveTripScreen({
       tripId
     ) => {
       if (
-        isEvening()
+        isEveningTrip()
       ) {
         setSelectedTrip(
           tripId
@@ -3389,6 +3370,10 @@ function ActiveTripScreen({
     async (
       tripId
     ) => {
+      if (processingTripId) {
+        return;
+      }
+
       /*
        * Remember destination BEFORE
        * student gets marked dropped.
@@ -3410,8 +3395,12 @@ function ActiveTripScreen({
        * Evening drop doesn't require photo.
        */
       if (
-        isEvening()
+        isEveningTrip()
       ) {
+        setProcessingTripId(
+          tripId
+        );
+
         try {
           await axios.post(
             `/trip/drop/${tripId}`
@@ -3425,6 +3414,9 @@ function ActiveTripScreen({
             null
           );
 
+          lastRouteDestination.current =
+            null;
+
           setNextStudent(
             null
           );
@@ -3437,7 +3429,11 @@ function ActiveTripScreen({
             error.response
               ?.data
               ?.message ||
-              "Failed to drop student"
+            "Failed to drop student"
+          );
+        } finally {
+          setProcessingTripId(
+            null
           );
         }
 
@@ -4029,7 +4025,7 @@ function ActiveTripScreen({
                     tripPhase
                   }
                   isEvening={
-                    isEvening
+                    isEveningTrip
                   }
                   onPickup={
                     handlePickup
@@ -4041,7 +4037,8 @@ function ActiveTripScreen({
                     handleAbsent
                   }
                   isUploading={
-                    isUploading
+                    isUploading ||
+                    Boolean(processingTripId)
                   }
                 />
               )

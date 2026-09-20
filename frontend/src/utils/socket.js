@@ -16,6 +16,6 @@ export const socket =
         true,
 
       autoConnect:
-        true,
+        false,
     }
   );

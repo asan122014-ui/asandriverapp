@@ -95,6 +95,35 @@ const END_TRIP_RADIUS_METERS =
 const isEveningNow = () =>
   new Date().getHours() >= 12;
 
+const formatRecordedTime =
+  (value) => {
+    if (!value) {
+      return "--";
+    }
+
+    const date =
+      new Date(value);
+
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return "--";
+    }
+
+    return date.toLocaleTimeString(
+      [],
+      {
+        hour:
+          "2-digit",
+
+        minute:
+          "2-digit",
+      }
+    );
+  };
+
 /* =========================================================
    VALID COORDINATES
 ========================================================= */
@@ -527,6 +556,81 @@ function ActiveTripScreen({
     driverRef.current =
       driver;
   }, [driver]);
+
+  /* =======================================================
+     AUTHENTICATED LIVE-TRIP SOCKET
+  ======================================================= */
+
+  useEffect(() => {
+    const token =
+      localStorage.getItem(
+        "accessToken"
+      );
+
+    if (
+      !token ||
+      !driver?.driverId
+    ) {
+      return;
+    }
+
+    socket.auth = {
+      token,
+    };
+
+    const joinDriverRoom =
+      () => {
+        socket.emit(
+          "join_driver_room",
+          {
+            driverId:
+              driver.driverId,
+          }
+        );
+      };
+
+    const handleConnectError =
+      (error) => {
+        console.error(
+          "Live trip socket error:",
+          error.message
+        );
+      };
+
+    socket.on(
+      "connect",
+      joinDriverRoom
+    );
+
+    socket.on(
+      "connect_error",
+      handleConnectError
+    );
+
+    if (
+      socket.connected
+    ) {
+      joinDriverRoom();
+    } else {
+      socket.connect();
+    }
+
+    return () => {
+      socket.off(
+        "connect",
+        joinDriverRoom
+      );
+
+      socket.off(
+        "connect_error",
+        handleConnectError
+      );
+
+      socket.disconnect();
+    };
+  }, [
+    driver?.driverId,
+  ]);
 
   /* =======================================================
      MAP ICONS
@@ -1050,12 +1154,20 @@ function ActiveTripScreen({
     students.length;
 
   const picked =
-    tripProgress.pickedStudents ||
-    0;
+    students.filter(
+      (student) =>
+        student.status ===
+          "onboard" ||
+        student.status ===
+          "picked_up"
+    ).length;
 
   const dropped =
-    tripProgress.droppedStudents ||
-    0;
+    students.filter(
+      (student) =>
+        student.status ===
+        "dropped"
+    ).length;
 
   /*
    * Use actual student status as a backup because
@@ -1070,14 +1182,12 @@ function ActiveTripScreen({
           "absent"
     ).length;
 
-  const remaining =
-    typeof tripProgress.remainingStudents ===
-    "number"
-      ? Math.min(
-          tripProgress.remainingStudents,
-          actualRemaining
-        )
-      : actualRemaining;
+  const awaitingPickup =
+    students.filter(
+      (student) =>
+        student.status ===
+        "waiting"
+    ).length;
 
   const progress =
     useMemo(
@@ -1091,6 +1201,10 @@ function ActiveTripScreen({
         const completed =
           students.filter(
             (student) =>
+              student.status ===
+                "onboard" ||
+              student.status ===
+                "picked_up" ||
               student.status ===
                 "dropped" ||
               student.status ===
@@ -3897,7 +4011,7 @@ function ActiveTripScreen({
                 dropped
               }
               remaining={
-                actualRemaining
+                awaitingPickup
               }
               progress={
                 progress
@@ -5026,46 +5140,26 @@ function StudentCard({
       </div>
 
       {(student.pickupTime ||
-        student.dropTime) && (
+        student.dropoffTime ||
+        student.actualPickupTime ||
+        student.actualDropTime) && (
           <div className="mt-3 grid grid-cols-2 gap-2">
 
             <TimeBlock
               label="Pickup"
               value={
-                student.pickupTime
-                  ? new Date(
-                      student.pickupTime
-                    ).toLocaleTimeString(
-                      [],
-                      {
-                        hour:
-                          "2-digit",
-
-                        minute:
-                          "2-digit",
-                      }
-                    )
-                  : "--"
+                formatRecordedTime(
+                  student.actualPickupTime
+                )
               }
             />
 
             <TimeBlock
               label="Drop"
               value={
-                student.dropTime
-                  ? new Date(
-                      student.dropTime
-                    ).toLocaleTimeString(
-                      [],
-                      {
-                        hour:
-                          "2-digit",
-
-                        minute:
-                          "2-digit",
-                      }
-                    )
-                  : "--"
+                formatRecordedTime(
+                  student.actualDropTime
+                )
               }
             />
 

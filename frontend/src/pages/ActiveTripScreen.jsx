@@ -16,7 +16,10 @@ import {
   GoogleMap,
   DirectionsRenderer,
   Marker,
+  OverlayView,
 } from "@react-google-maps/api";
+
+import driverNavigationPointer from "../assets/driver-navigation-pointer.png";
 
 import {
   uploadMorningDropPhoto,
@@ -234,6 +237,73 @@ const calculateDistanceMeters = (
   return R * c;
 };
 
+const calculateBearing = (
+  start,
+  end
+) => {
+  if (
+    !start ||
+    !end
+  ) {
+    return 0;
+  }
+
+  const toRadians =
+    (degrees) =>
+      degrees *
+      (Math.PI / 180);
+
+  const startLat =
+    toRadians(
+      Number(start.lat)
+    );
+
+  const endLat =
+    toRadians(
+      Number(end.lat)
+    );
+
+  const longitudeDelta =
+    toRadians(
+      Number(end.lng) -
+      Number(start.lng)
+    );
+
+  const y =
+    Math.sin(
+      longitudeDelta
+    ) *
+    Math.cos(
+      endLat
+    );
+
+  const x =
+    Math.cos(
+      startLat
+    ) *
+      Math.sin(
+        endLat
+      ) -
+    Math.sin(
+      startLat
+    ) *
+      Math.cos(
+        endLat
+      ) *
+      Math.cos(
+        longitudeDelta
+      );
+
+  return (
+    Math.atan2(
+      y,
+      x
+    ) *
+      (180 / Math.PI) +
+    360
+  ) % 360;
+};
+
 /* =========================================================
    FORMAT DISTANCE
 ========================================================= */
@@ -339,6 +409,16 @@ function ActiveTripScreen({
     driverLocation,
     setDriverLocation,
   ] = useState(null);
+
+  const [
+    animatedDriverLocation,
+    setAnimatedDriverLocation,
+  ] = useState(null);
+
+  const [
+    driverHeading,
+    setDriverHeading,
+  ] = useState(0);
 
   const [
     directions,
@@ -489,6 +569,12 @@ function ActiveTripScreen({
     useRef(null);
 
   const lastDriverPosition =
+    useRef(null);
+
+  const animatedDriverPositionRef =
+    useRef(null);
+
+  const driverMarkerFrameRef =
     useRef(null);
 
   const lastRouteDestination =
@@ -970,6 +1056,160 @@ function ActiveTripScreen({
         fallbackCenter,
       ]
     );
+
+  /* =======================================================
+     SMOOTH DRIVER POINTER
+  ======================================================= */
+
+  useEffect(() => {
+    if (
+      !driverLocation ||
+      !isValidCoordinate(
+        driverLocation.lat
+      ) ||
+      !isValidCoordinate(
+        driverLocation.lng
+      )
+    ) {
+      return;
+    }
+
+    const target = {
+      lat:
+        Number(
+          driverLocation.lat
+        ),
+
+      lng:
+        Number(
+          driverLocation.lng
+        ),
+    };
+
+    const start =
+      animatedDriverPositionRef
+        .current ||
+      target;
+
+    const movement =
+      calculateDistanceMeters(
+        start,
+        target
+      );
+
+    const nextHeading =
+      Number.isFinite(
+        movement
+      ) &&
+      movement >= 1
+        ? calculateBearing(
+            start,
+            target
+          )
+        : null;
+
+    if (
+      driverMarkerFrameRef
+        .current
+    ) {
+      window.cancelAnimationFrame(
+        driverMarkerFrameRef
+          .current
+      );
+    }
+
+    let startedAt =
+      null;
+
+    const duration =
+      850;
+
+    const animate =
+      (
+        timestamp
+      ) => {
+        if (
+          startedAt ===
+          null
+        ) {
+          startedAt =
+            timestamp;
+
+          if (
+            nextHeading !==
+            null
+          ) {
+            setDriverHeading(
+              nextHeading
+            );
+          }
+        }
+
+        const progress =
+          Math.min(
+            (timestamp -
+              startedAt) /
+              duration,
+            1
+          );
+
+        const easedProgress =
+          1 -
+          Math.pow(
+            1 - progress,
+            3
+          );
+
+        const position = {
+          lat:
+            start.lat +
+            (target.lat -
+              start.lat) *
+              easedProgress,
+
+          lng:
+            start.lng +
+            (target.lng -
+              start.lng) *
+              easedProgress,
+        };
+
+        animatedDriverPositionRef.current =
+          position;
+
+        setAnimatedDriverLocation(
+          position
+        );
+
+        if (
+          progress < 1
+        ) {
+          driverMarkerFrameRef.current =
+            window.requestAnimationFrame(
+              animate
+            );
+        }
+      };
+
+    driverMarkerFrameRef.current =
+      window.requestAnimationFrame(
+        animate
+      );
+
+    return () => {
+      if (
+        driverMarkerFrameRef
+          .current
+      ) {
+        window.cancelAnimationFrame(
+          driverMarkerFrameRef
+            .current
+        );
+      }
+    };
+  }, [
+    driverLocation,
+  ]);
 
   /* =======================================================
      COMPLETION STATUS
@@ -3728,12 +3968,48 @@ function ActiveTripScreen({
               }}
             >
 
-              {driverLocation && (
-                <Marker
+              {animatedDriverLocation && (
+                <OverlayView
                   position={
-                    driverLocation
+                    animatedDriverLocation
                   }
-                />
+                  mapPaneName={
+                    OverlayView.OVERLAY_MOUSE_TARGET
+                  }
+                >
+                  <div
+                    aria-label="Driver's current location"
+                    className="pointer-events-none"
+                    style={{
+                      width:
+                        "42px",
+
+                      height:
+                        "42px",
+
+                      transform:
+                        `translate(-50%, -50%) rotate(${driverHeading}deg)`,
+
+                      transformOrigin:
+                        "center",
+
+                      transition:
+                        "transform 220ms linear",
+
+                      filter:
+                        "drop-shadow(0 3px 5px rgba(0, 0, 0, 0.28))",
+                    }}
+                  >
+                    <img
+                      src={
+                        driverNavigationPointer
+                      }
+                      alt=""
+                      draggable="false"
+                      className="h-full w-full select-none object-contain"
+                    />
+                  </div>
+                </OverlayView>
               )}
 
               {students.map(

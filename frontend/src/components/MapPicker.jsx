@@ -19,6 +19,7 @@ export default function MapPicker({ onChange }) {
   const [marker, setMarker] = useState(defaultCenter);
   const [address, setAddress] = useState("");
   const [loadingLocation, setLoadingLocation] = useState(true);
+  const [mapsUnavailable, setMapsUnavailable] = useState(false);
 
   const center = useMemo(() => marker, [marker]);
 
@@ -44,6 +45,23 @@ export default function MapPicker({ onChange }) {
         setLoadingLocation(false);
       }
     );
+  }, []);
+
+  useEffect(() => {
+    if (window.google) return undefined;
+
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      if (window.google) {
+        setMapsUnavailable(false);
+        window.clearInterval(timer);
+      } else if (Date.now() - startedAt >= 12000) {
+        setMapsUnavailable(true);
+        window.clearInterval(timer);
+      }
+    }, 300);
+
+    return () => window.clearInterval(timer);
   }, []);
 
   /* ================= REVERSE GEOCODE ================= */
@@ -128,6 +146,18 @@ export default function MapPicker({ onChange }) {
   };
 
   /* ================= WAIT FOR GOOGLE ================= */
+
+  if (!window.google && mapsUnavailable) {
+    return (
+      <div className="flex h-80 flex-col items-center justify-center rounded-2xl bg-amber-50 px-6 text-center">
+        <MapPin className="mb-3 text-amber-600" />
+        <p className="font-semibold text-gray-800">Map is unavailable</p>
+        <p className="mt-2 text-sm text-gray-600">
+          Check the Google Maps API key and enabled Maps and Places services, then reload the app.
+        </p>
+      </div>
+    );
+  }
 
   if (!window.google || loadingLocation) {
     return (

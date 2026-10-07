@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useState,
 } from "react";
 
 import {
@@ -58,6 +59,7 @@ import VerificationPending from "./pages/VerificationPending";
 ========================================================= */
 
 import ProtectedRoute from "./components/ProtectedRoute";
+import DriverOnboarding from "./components/DriverOnboarding";
 
 /* =========================================================
    GOOGLE MAP LIBRARIES
@@ -75,6 +77,24 @@ const LIBRARIES = [
 function App() {
   const location =
     useLocation();
+
+  const [showDriverOnboarding, setShowDriverOnboarding] = useState(() => {
+    try {
+      return localStorage.getItem("asan_driver_onboarding_completed") !== "true";
+    } catch (error) {
+      console.warn("Unable to read driver onboarding state:", error);
+      return true;
+    }
+  });
+
+  const completeDriverOnboarding = () => {
+    try {
+      localStorage.setItem("asan_driver_onboarding_completed", "true");
+    } catch (error) {
+      console.warn("Unable to save driver onboarding state:", error);
+    }
+    setShowDriverOnboarding(false);
+  };
 
   /* =======================================================
      SCROLL TO TOP ON PAGE CHANGE
@@ -333,6 +353,7 @@ function App() {
 
   const {
     isLoaded,
+    loadError,
   } =
     useJsApiLoader({
       googleMapsApiKey:
@@ -342,6 +363,22 @@ function App() {
       libraries:
         LIBRARIES,
     });
+
+  const [mapsTimedOut, setMapsTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (isLoaded) {
+      setMapsTimedOut(false);
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(
+      () => setMapsTimedOut(true),
+      15000
+    );
+
+    return () => window.clearTimeout(timeout);
+  }, [isLoaded]);
 
   /* =======================================================
      FCM / PUSH NOTIFICATIONS
@@ -687,45 +724,8 @@ function App() {
      MAP LOADING
   ======================================================= */
 
-  if (
-    !isLoaded
-  ) {
-    return (
-      <div
-        className="
-          min-h-screen
-          flex
-          items-center
-          justify-center
-          bg-gray-100
-        "
-      >
-        <div className="text-center">
-          <div
-            className="
-              w-10
-              h-10
-              border-4
-              border-yellow-500
-              border-t-transparent
-              rounded-full
-              animate-spin
-              mx-auto
-            "
-          />
-
-          <p
-            className="
-              text-gray-500
-              text-sm
-              mt-4
-            "
-          >
-            Loading ASAN Captain...
-          </p>
-        </div>
-      </div>
-    );
+  if (showDriverOnboarding) {
+    return <DriverOnboarding onComplete={completeDriverOnboarding} />;
   }
 
   /* =======================================================
@@ -737,6 +737,15 @@ function App() {
       <Toaster
         position="top-center"
       />
+
+      {(!isLoaded && (loadError || mapsTimedOut || !import.meta.env.VITE_GOOGLE_MAPS_API_KEY)) && (
+        <div
+          role="status"
+          className="fixed inset-x-3 top-3 z-[100] mx-auto max-w-xl rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 shadow-lg"
+        >
+          Maps are unavailable, but you can keep using the driver app. Check the Google Maps API key and its website restrictions to restore map features.
+        </div>
+      )}
 
       <Routes>
 
@@ -864,7 +873,15 @@ function App() {
           path="/activetrip"
           element={
             <ProtectedRoute>
-              <ActiveTripScreen />
+              <ActiveTripScreen
+                googleMapsLoaded={isLoaded}
+                googleMapsError={
+                  loadError ||
+                  (mapsTimedOut
+                    ? new Error("Google Maps did not finish loading.")
+                    : null)
+                }
+              />
             </ProtectedRoute>
           }
         />

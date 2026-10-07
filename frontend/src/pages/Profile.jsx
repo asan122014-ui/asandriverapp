@@ -2432,7 +2432,7 @@ function Profile() {
 
               <div className="relative min-h-0 flex-1 bg-[#EEE8DD]">
 
-                {mapLocation ? (
+                {mapLocation && window.google ? (
                   <GoogleMap
                     mapContainerStyle={
                       mapContainerStyle
@@ -2492,6 +2492,16 @@ function Profile() {
                     />
 
                   </GoogleMap>
+                ) : mapLocation ? (
+                  <div className="flex h-full w-full items-center justify-center bg-[#FFF9EE] px-6">
+                    <div className="max-w-sm text-center">
+                      <MapPin size={28} className="mx-auto text-[#A97000]" />
+                      <p className="mt-4 text-sm font-black text-black">Map is unavailable</p>
+                      <p className="mt-2 text-xs leading-6 text-[#8C8276]">
+                        Check the Google Maps API key and its website restrictions, then reload the app.
+                      </p>
+                    </div>
+                  </div>
                 ) : (
                   <div className="flex h-full w-full items-center justify-center bg-[#FFF9EE] px-6">
 

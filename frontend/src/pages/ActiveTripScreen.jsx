@@ -379,6 +379,8 @@ const createIcon = (
 
 function ActiveTripScreen({
   onEndTrip,
+  googleMapsLoaded = false,
+  googleMapsError = null,
 }) {
   const navigate =
     useNavigate();
@@ -391,10 +393,11 @@ function ActiveTripScreen({
   ======================================================= */
 
   const mapsLoaded =
+    googleMapsLoaded ||
     typeof window !== "undefined" &&
     Boolean(window.google?.maps);
 
-  const mapsLoadError = null;
+  const mapsLoadError = googleMapsError;
 
   /* =======================================================
      STATE
@@ -530,7 +533,16 @@ function ActiveTripScreen({
   const pollingRef =
     useRef(null);
 
-const backgroundWatchId =
+  const localVideoRef =
+    useRef(null);
+
+  const streamRef =
+    useRef(null);
+
+  const pcRef =
+    useRef(null);
+
+  const backgroundWatchId =
     useRef(null);
 
   const foregroundWatchId =
@@ -2561,6 +2573,48 @@ const backgroundWatchId =
   ]);
 
   /* =======================================================
+     STOP CAMERA
+  ======================================================= */
+
+  const stopCamera =
+    useCallback(
+      () => {
+        if (
+          streamRef.current
+        ) {
+          streamRef.current
+            .getTracks()
+            .forEach(
+              (
+                track
+              ) =>
+                track.stop()
+            );
+
+          streamRef.current =
+            null;
+        }
+
+        if (
+          localVideoRef.current
+        ) {
+          localVideoRef.current.srcObject =
+            null;
+        }
+
+        if (
+          pcRef.current
+        ) {
+          pcRef.current.close();
+
+          pcRef.current =
+            null;
+        }
+      },
+      []
+    );
+
+  /* =======================================================
      END TRIP
   ======================================================= */
 
@@ -2689,6 +2743,20 @@ const backgroundWatchId =
           await stopBackgroundTracking();
 
           stopForegroundTracking();
+
+          socket.emit(
+            "camera_control",
+            {
+              action:
+                "stop",
+
+              driverId:
+                driver?.driverId,
+            }
+          );
+
+          stopCamera();
+
           navigate(
             "/trip-success",
             {
@@ -2744,6 +2812,7 @@ const backgroundWatchId =
         onEndTrip,
         stopBackgroundTracking,
         stopForegroundTracking,
+        stopCamera,
       ]
     );
 
@@ -3153,11 +3222,14 @@ const backgroundWatchId =
       stopBackgroundTracking();
 
       stopForegroundTracking();
+
+      stopCamera();
     };
   }, [
     startLocationTracking,
     stopBackgroundTracking,
     stopForegroundTracking,
+    stopCamera,
   ]);
 
   /* =======================================================
@@ -3469,6 +3541,112 @@ const backgroundWatchId =
       } finally {
         setIsUploading(
           false
+        );
+      }
+    };
+
+  /* =======================================================
+     CAMERA
+  ======================================================= */
+
+  const startCamera =
+    async () => {
+      try {
+        const stream =
+          await navigator.mediaDevices.getUserMedia(
+            {
+              video:
+                true,
+
+              audio:
+                false,
+            }
+          );
+
+        streamRef.current =
+          stream;
+
+        if (
+          localVideoRef.current
+        ) {
+          localVideoRef.current.srcObject =
+            stream;
+        }
+
+        if (
+          pcRef.current
+        ) {
+          pcRef.current.close();
+        }
+
+        pcRef.current =
+          new RTCPeerConnection(
+            {
+              iceServers: [
+                {
+                  urls:
+                    "stun:stun.l.google.com:19302",
+                },
+              ],
+            }
+          );
+
+        stream
+          .getTracks()
+          .forEach(
+            (
+              track
+            ) => {
+              pcRef.current.addTrack(
+                track,
+                stream
+              );
+            }
+          );
+
+        pcRef.current.onicecandidate =
+          (
+            event
+          ) => {
+            if (
+              event.candidate
+            ) {
+              socket.emit(
+                "ice-candidate",
+                {
+                  candidate:
+                    event.candidate,
+
+                  driverId:
+                    driver?.driverId,
+
+                  sender:
+                    "driver",
+                }
+              );
+            }
+          };
+
+        const offer =
+          await pcRef.current.createOffer();
+
+        await pcRef.current.setLocalDescription(
+          offer
+        );
+
+        socket.emit(
+          "offer",
+          {
+            offer,
+
+            driverId:
+              driver?.driverId,
+          }
+        );
+      } catch (error) {
+        console.error(
+          "Camera error:",
+          error
         );
       }
     };
@@ -4636,6 +4814,19 @@ const backgroundWatchId =
             }}
           />
         )}
+
+        <video
+          ref={
+            localVideoRef
+          }
+          autoPlay
+          playsInline
+          muted
+          style={{
+            display:
+              "none",
+          }}
+        />
 
       </div>
 

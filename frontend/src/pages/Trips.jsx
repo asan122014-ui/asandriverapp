@@ -273,8 +273,10 @@ function Trips() {
      INVOICE SUMMARY
   ======================================================= */
 
-  const totalInvoices =
-    invoices.length;
+  const totalInvoices = new Set([
+    ...invoices.map((invoice) => `invoice:${invoice._id}`),
+    ...payouts.map((payout) => payout.invoiceId?._id ? `invoice:${payout.invoiceId._id}` : payout.bookingId?._id ? `booking:${payout.bookingId._id}` : `payout:${payout._id}`),
+  ]).size;
 
   const paidPayouts = payouts.filter((payout) => payout.status === "Paid");
   const pendingPayouts = payouts.filter((payout) => payout.status !== "Paid");
@@ -652,7 +654,7 @@ function Trips() {
                 </p>
 
                 <p className="text-[6.5px] font-bold text-[#91877C]">
-                  {invoiceError ? "INVOICES UNAVAILABLE" : totalInvoices === 0 ? "NO INVOICES YET" : "INVOICES"}
+                  {invoiceError ? "INVOICES UNAVAILABLE" : totalInvoices === 0 ? "NO SERVICE RECORDS YET" : "SERVICE RECORDS"}
                 </p>
               </div>
 
@@ -1110,11 +1112,11 @@ function Trips() {
                                 <div>
 
                                   <p className="text-[7px] font-black tracking-[0.12em] text-[#A0968A]">
-                                    {payout.installment === "mid_service" ? "MID-SERVICE INSTALLMENT" : "SERVICE COMPLETION INSTALLMENT"}
+                                    {payout.installment === "mid_service" ? "AFTER HALF THE SERVICE" : "AT SERVICE END"}
                                   </p>
 
                                   <h3 className="mt-1 text-[11px] font-black text-black">
-                                    {invoice.invoiceNumber || "Monthly service"}
+                                    {payout.serviceReference || invoice.invoiceNumber || "Monthly service"}
                                   </h3>
                                 </div>
 
@@ -1138,7 +1140,7 @@ function Trips() {
                             <InvoiceItem
                               label="Student"
                               value={
-                                invoice.childId
+                                payout.serviceName || invoice.childId
                                   ?.name ||
                                 "Not Available"
                               }
@@ -1150,7 +1152,7 @@ function Trips() {
                               label="Month"
                               value={
                                 formatMonth(
-                                  invoice.month
+                                  payout.serviceMonth || invoice.month
                                 )
                               }
                             />

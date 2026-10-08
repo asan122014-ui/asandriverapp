@@ -65,6 +65,8 @@ function Trips() {
     []
   );
 
+  const [payouts, setPayouts] = useState([]);
+
   const [
     loading,
     setLoading,
@@ -180,6 +182,7 @@ function Trips() {
           setInvoices(
             invoiceData
           );
+
         } catch (
           invoiceError
         ) {
@@ -191,6 +194,14 @@ function Trips() {
           setInvoices(
             []
           );
+        }
+
+        try {
+          const payoutResponse = await axios.get(`${API}/api/invoices/driver/payouts`);
+          setPayouts(Array.isArray(payoutResponse.data?.data) ? payoutResponse.data.data : []);
+        } catch (payoutError) {
+          console.warn("Driver payout records are not available yet:", payoutError);
+          setPayouts([]);
         }
       } catch (
         error
@@ -259,16 +270,10 @@ function Trips() {
   const totalInvoices =
     invoices.length;
 
-  const paidInvoices = invoices.filter((invoice) =>
-    String(invoice.status || "").toLowerCase() === "paid" ||
-    String(invoice.paymentStatus || "").toLowerCase() === "success"
-  );
-  const paidTotal = paidInvoices.reduce((sum, invoice) => sum + Number(invoice.totalAmount || 0), 0);
-  const outstandingInvoices = invoices.filter((invoice) =>
-    ["pending", "processing", "overdue"].includes(String(invoice.status || "").toLowerCase()) ||
-    String(invoice.paymentStatus || "").toLowerCase() === "pending"
-  );
-  const outstandingTotal = outstandingInvoices.reduce((sum, invoice) => sum + Number(invoice.totalAmount || 0), 0);
+  const paidPayouts = payouts.filter((payout) => payout.status === "Paid");
+  const pendingPayouts = payouts.filter((payout) => payout.status !== "Paid");
+  const paidPayoutTotal = paidPayouts.reduce((sum, payout) => sum + Number(payout.amount || 0), 0);
+  const pendingPayoutTotal = pendingPayouts.reduce((sum, payout) => sum + Number(payout.amount || 0), 0);
 
   /* =======================================================
      FILTER TRIPS
@@ -645,7 +650,7 @@ function Trips() {
                 </p>
               </div>
 
-              {/* PAID */}
+              {/* DRIVER PAYOUTS COMPLETED */}
 
               <div className="rounded-[14px] bg-[#FFF9EE] px-2.5 py-3">
 
@@ -658,11 +663,11 @@ function Trips() {
                 </div>
 
                 <p className="mt-2 text-[14px] font-black text-black">
-                  ₹{paidTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                  ₹{paidPayoutTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                 </p>
 
                 <p className="text-[6.5px] font-bold text-[#91877C]">
-                  PAID BY PARENTS
+                  PAID TO DRIVER · {paidPayouts.length} INSTALLMENTS
                 </p>
               </div>
 
@@ -679,11 +684,11 @@ function Trips() {
                 </div>
 
                 <p className="mt-2 text-[14px] font-black text-black">
-                  ₹{outstandingTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                  ₹{pendingPayoutTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                 </p>
 
                 <p className="text-[6.5px] font-bold text-[#91877C]">
-                  PENDING FROM PARENTS · {outstandingInvoices.length} INVOICES
+                  DRIVER PAYOUT PENDING · {pendingPayouts.length} INSTALLMENTS
                 </p>
               </div>
             </div>
@@ -746,7 +751,7 @@ function Trips() {
 
                 {activeTab ===
                 "Payments"
-                  ? "Payments & Invoices"
+                  ? "Driver Payouts"
                   : activeTab ===
                       "All"
                   ? "Recent Trips"
@@ -757,7 +762,7 @@ function Trips() {
 
                 {activeTab ===
                 "Payments"
-                  ? `${invoices.length} TOTAL`
+                  ? `${payouts.length} INSTALLMENTS`
                   : `${groupedTrips.length} TOTAL`}
               </span>
             </div>
@@ -1029,7 +1034,7 @@ function Trips() {
             <>
               {/* EMPTY */}
 
-              {invoices.length ===
+              {payouts.length ===
                 0 && (
                 <div className="rounded-[20px] border border-[#EEE3D1] bg-white py-12 text-center">
 
@@ -1042,40 +1047,32 @@ function Trips() {
                   </div>
 
                   <h3 className="mt-3 text-[12px] font-black text-black">
-                    No invoices available
+                    No driver payments available
                   </h3>
 
                   <p className="mt-1 text-[7.5px] text-[#91877C]">
-                    Payment and invoice records will appear here once the institute generates them.
+                    Your two installment records will appear here when invoices are generated.
                   </p>
                 </div>
               )}
 
               {/* INVOICE LIST */}
 
-              {invoices.length >
+              {payouts.length >
                 0 && (
                 <div className="space-y-2.5">
 
-                  {invoices.map(
+                  {payouts.map(
                     (
-                      invoice
+                      payout
                     ) => {
-                      const status =
-                        getInvoiceStatus(
-                          invoice.status || invoice.paymentStatus
-                        );
-                      const driverAmount = Number(
-                        invoice.baseAmount ??
-                          (Number(invoice.totalAmount || 0) - Number(invoice.platformCommission || 0))
-                      );
-                      const firstInstallment = Math.round((driverAmount / 2) * 100) / 100;
-                      const finalInstallment = Math.round((driverAmount - firstInstallment) * 100) / 100;
+                      const invoice = payout.invoiceId || {};
+                      const status = getInvoiceStatus(payout.status);
 
                       return (
                         <section
                           key={
-                            invoice._id
+                            payout._id
                           }
                           className="rounded-[18px] border border-[#EEE3D1] bg-white p-4"
                         >
@@ -1099,12 +1096,11 @@ function Trips() {
                                 <div>
 
                                   <p className="text-[7px] font-black tracking-[0.12em] text-[#A0968A]">
-                                    MONTHLY INVOICE
+                                    {payout.installment === "mid_service" ? "MID-SERVICE INSTALLMENT" : "SERVICE COMPLETION INSTALLMENT"}
                                   </p>
 
                                   <h3 className="mt-1 text-[11px] font-black text-black">
-                                    {invoice.invoiceNumber ||
-                                      "Invoice"}
+                                    {invoice.invoiceNumber || "Monthly service"}
                                   </h3>
                                 </div>
 
@@ -1162,62 +1158,14 @@ function Trips() {
                               </div>
 
                               <p className="mt-1 text-[10px] font-black text-black">
-                                ₹
-                                {driverAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  ₹
+                                {Number(payout.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </p>
                             </div>
 
-                            <InvoiceItem
-                              label="Parent invoice total"
-                              value={`₹${Number(invoice.totalAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                            />
-
-                            <InvoiceItem
-                              label="Platform fee"
-                              value={`₹${Number(invoice.platformCommission || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                            />
-
-                            {/* DUE DATE */}
-
-                            <InvoiceItem
-                              label="Due Date"
-                              value={
-                                formatDate(
-                                  invoice.dueDate
-                                )
-                              }
-                            />
-
-                            <InvoiceItem
-                              label="Payment Method"
-                              value={invoice.paymentMethod || (["paid", "success"].includes(String(invoice.status || invoice.paymentStatus || "").toLowerCase()) ? "Paid" : "Not paid")}
-                            />
                           </div>
 
-                          <div className="mt-3 rounded-[13px] border border-[#F0DFAE] bg-[#FFF9EE] p-3">
-                            <p className="text-[7px] font-black uppercase tracking-[0.12em] text-[#A97000]">Driver payment schedule</p>
-                            <p className="mt-1 text-[7px] leading-4 text-[#766B5D]">Your distance-charge amount is planned in two installments:</p>
-                            <div className="mt-2 grid grid-cols-2 gap-2">
-                              <div className="rounded-[10px] bg-white px-2.5 py-2">
-                                <p className="text-[6px] font-bold text-[#91877C]">AFTER HALF THE SERVICE</p>
-                                <p className="mt-1 text-[9px] font-black text-black">₹{firstInstallment.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                              </div>
-                              <div className="rounded-[10px] bg-white px-2.5 py-2">
-                                <p className="text-[6px] font-bold text-[#91877C]">AT SERVICE END</p>
-                                <p className="mt-1 text-[9px] font-black text-black">₹{finalInstallment.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                              </div>
-                            </div>
-                            <p className="mt-2 text-[6px] leading-3 text-[#8C8276]">Installments are marked paid after ASAN confirms the transfer. Parent invoice status is shown separately above.</p>
-                          </div>
-
-                          {/* PAID DATE */}
-
-                          {String(
-                            invoice.status ||
-                              ""
-                          ).toLowerCase() ===
-                            "paid" &&
-                            invoice.paidAt && (
+                          {payout.status === "Paid" && payout.paidAt && (
                               <div className="mt-2 flex items-center gap-2 rounded-[11px] bg-[#EDF6EB] px-3 py-2">
 
                                 <CheckCircle2
@@ -1228,16 +1176,16 @@ function Trips() {
                                 <p className="text-[7px] font-bold text-[#4E854A]">
                                   Paid on{" "}
                                   {formatDate(
-                                    invoice.paidAt
+                                    payout.paidAt
                                   )}
                                 </p>
                               </div>
                             )}
 
-                          {String(invoice.status || invoice.paymentStatus || "").toLowerCase() === "paid" && invoice.razorpayPaymentId && (
+                          {payout.proofAvailable && (
                             <div className="mt-2 rounded-[11px] bg-[#F5F3EF] px-3 py-2">
-                              <p className="text-[6px] font-bold uppercase text-[#91877C]">Payment reference</p>
-                              <p className="mt-1 break-all text-[7px] font-semibold text-[#5C554D]">{invoice.razorpayPaymentId}</p>
+                              <p className="text-[6px] font-bold uppercase text-[#91877C]">Payment confirmation</p>
+                              <button type="button" className="mt-1 text-[7px] font-bold text-[#A97000]" onClick={async () => { try { const { data } = await axios.get(`${API}/api/invoices/driver/payouts/${payout._id}/proof`, { responseType: "blob" }); const url = URL.createObjectURL(data); const tab = window.open(url, "_blank", "noopener,noreferrer"); if (!tab) URL.revokeObjectURL(url); else setTimeout(() => URL.revokeObjectURL(url), 60000); } catch (proofError) { console.error("Could not open payout proof", proofError); } }}>View transfer receipt</button>
                             </div>
                           )}
                         </section>

@@ -216,46 +216,6 @@ function Students() {
     );
 
   /* =======================================================
-     SUMMARY
-  ======================================================= */
-
-  const waiting =
-    studentsData.filter(
-      (
-        student
-      ) =>
-        normalizeStatus(
-          student.status
-        ) === "waiting"
-    ).length;
-
-  const onboard =
-    studentsData.filter(
-      (
-        student
-      ) =>
-        normalizeStatus(
-          student.status
-        ) === "onboard" ||
-        normalizeStatus(
-          student.status
-        ) === "on board"
-    ).length;
-
-  const dropped =
-    studentsData.filter(
-      (
-        student
-      ) =>
-        normalizeStatus(
-          student.status
-        ) === "dropped" ||
-        normalizeStatus(
-          student.status
-        ) === "completed"
-    ).length;
-
-  /* =======================================================
      NEXT STUDENT
   ======================================================= */
 
@@ -444,59 +404,6 @@ function Students() {
         ================================================= */}
 
         <main className="relative z-10 mt-5 px-4">
-
-          {/* =================================================
-              STATUS SUMMARY
-          ================================================= */}
-
-          <section className="rounded-[20px] border border-[#EEE3D1] bg-white p-3.5">
-
-            <p className="px-1 text-[8px] font-black tracking-[0.14em] text-[#A0968A]">
-              TRIP STATUS
-            </p>
-
-            <div className="mt-3 grid grid-cols-3 gap-2">
-
-              {/* WAITING */}
-
-              <StatusBox
-                icon={
-                  CircleDot
-                }
-                label="Waiting"
-                value={
-                  waiting
-                }
-                type="waiting"
-              />
-
-              {/* ONBOARD */}
-
-              <StatusBox
-                icon={
-                  UserCheck
-                }
-                label="On Board"
-                value={
-                  onboard
-                }
-                type="onboard"
-              />
-
-              {/* DROPPED */}
-
-              <StatusBox
-                icon={
-                  CheckCircle2
-                }
-                label="Dropped"
-                value={
-                  dropped
-                }
-                type="dropped"
-              />
-            </div>
-          </section>
 
           {/* =================================================
               SEARCH
@@ -884,71 +791,6 @@ function Students() {
           </nav>
         </div>
       </div>
-    </div>
-  );
-}
-
-/* =========================================================
-   STATUS BOX
-========================================================= */
-
-function StatusBox({
-  icon: Icon,
-  label,
-  value,
-  type,
-}) {
-  const styles = {
-    waiting: {
-      bg:
-        "bg-[#FFF0C5]",
-
-      text:
-        "text-[#936200]",
-    },
-
-    onboard: {
-      bg:
-        "bg-[#EDF6EB]",
-
-      text:
-        "text-[#4E854A]",
-    },
-
-    dropped: {
-      bg:
-        "bg-[#EEEAFB]",
-
-      text:
-        "text-[#7564A8]",
-    },
-  };
-
-  const style =
-    styles[type] ||
-    styles.waiting;
-
-  return (
-    <div className="rounded-[14px] bg-[#FFF9EE] px-2.5 py-3">
-
-      <div
-        className={`flex h-8 w-8 items-center justify-center rounded-[10px] ${style.bg}`}
-      >
-        <Icon
-          size={13}
-          className={
-            style.text
-          }
-        />
-      </div>
-
-      <p className="mt-2 text-[17px] font-black text-black">
-        {value}
-      </p>
-
-      <p className="text-[6.5px] font-bold uppercase text-[#91877C]">
-        {label}
-      </p>
     </div>
   );
 }

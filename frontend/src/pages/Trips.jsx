@@ -1065,6 +1065,12 @@ function Trips() {
                         getInvoiceStatus(
                           invoice.status || invoice.paymentStatus
                         );
+                      const driverAmount = Number(
+                        invoice.baseAmount ??
+                          (Number(invoice.totalAmount || 0) - Number(invoice.platformCommission || 0))
+                      );
+                      const firstInstallment = Math.round((driverAmount / 2) * 100) / 100;
+                      const finalInstallment = Math.round((driverAmount - firstInstallment) * 100) / 100;
 
                       return (
                         <section
@@ -1157,7 +1163,7 @@ function Trips() {
 
                               <p className="mt-1 text-[10px] font-black text-black">
                                 ₹
-                                {Number(invoice.baseAmount ?? (Number(invoice.totalAmount || 0) - Number(invoice.platformCommission || 0))).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                {driverAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </p>
                             </div>
 
@@ -1186,6 +1192,22 @@ function Trips() {
                               label="Payment Method"
                               value={invoice.paymentMethod || (["paid", "success"].includes(String(invoice.status || invoice.paymentStatus || "").toLowerCase()) ? "Paid" : "Not paid")}
                             />
+                          </div>
+
+                          <div className="mt-3 rounded-[13px] border border-[#F0DFAE] bg-[#FFF9EE] p-3">
+                            <p className="text-[7px] font-black uppercase tracking-[0.12em] text-[#A97000]">Driver payment schedule</p>
+                            <p className="mt-1 text-[7px] leading-4 text-[#766B5D]">Your distance-charge amount is planned in two installments:</p>
+                            <div className="mt-2 grid grid-cols-2 gap-2">
+                              <div className="rounded-[10px] bg-white px-2.5 py-2">
+                                <p className="text-[6px] font-bold text-[#91877C]">AFTER HALF THE SERVICE</p>
+                                <p className="mt-1 text-[9px] font-black text-black">₹{firstInstallment.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                              </div>
+                              <div className="rounded-[10px] bg-white px-2.5 py-2">
+                                <p className="text-[6px] font-bold text-[#91877C]">AT SERVICE END</p>
+                                <p className="mt-1 text-[9px] font-black text-black">₹{finalInstallment.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                              </div>
+                            </div>
+                            <p className="mt-2 text-[6px] leading-3 text-[#8C8276]">Installments are marked paid after ASAN confirms the transfer. Parent invoice status is shown separately above.</p>
                           </div>
 
                           {/* PAID DATE */}

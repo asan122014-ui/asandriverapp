@@ -66,6 +66,8 @@ function Trips() {
   );
 
   const [payouts, setPayouts] = useState([]);
+  const [invoiceError, setInvoiceError] = useState("");
+  const [payoutError, setPayoutError] = useState("");
 
   const [
     loading,
@@ -165,6 +167,7 @@ function Trips() {
         ================================================= */
 
         try {
+          setInvoiceError("");
           const invoiceResponse =
             await axios.get(
               `${API}/api/invoices/driver/${driver.driverId}`
@@ -186,6 +189,7 @@ function Trips() {
         } catch (
           invoiceError
         ) {
+          setInvoiceError(invoiceError?.response?.status ? `Invoice service returned ${invoiceError.response.status}.` : "Unable to reach the invoice service.");
           console.log(
             "Invoice API not ready:",
             invoiceError
@@ -197,9 +201,11 @@ function Trips() {
         }
 
         try {
+          setPayoutError("");
           const payoutResponse = await axios.get(`${API}/api/invoices/driver/payouts`);
           setPayouts(Array.isArray(payoutResponse.data?.data) ? payoutResponse.data.data : []);
         } catch (payoutError) {
+          setPayoutError(payoutError?.response?.status ? `Payout service returned ${payoutError.response.status}. The backend update may still be deploying.` : "Unable to reach the driver payout service.");
           console.warn("Driver payout records are not available yet:", payoutError);
           setPayouts([]);
         }
@@ -642,11 +648,11 @@ function Trips() {
                 </div>
 
                 <p className="mt-2 text-[18px] font-black text-black">
-                  {totalInvoices}
+                  {invoiceError ? "—" : totalInvoices}
                 </p>
 
                 <p className="text-[6.5px] font-bold text-[#91877C]">
-                  INVOICES
+                  {invoiceError ? "INVOICES UNAVAILABLE" : totalInvoices === 0 ? "NO INVOICES YET" : "INVOICES"}
                 </p>
               </div>
 
@@ -663,11 +669,11 @@ function Trips() {
                 </div>
 
                 <p className="mt-2 text-[14px] font-black text-black">
-                  ₹{paidPayoutTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                  {payoutError ? "—" : `₹${paidPayoutTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`}
                 </p>
 
                 <p className="text-[6.5px] font-bold text-[#91877C]">
-                  PAID TO DRIVER · {paidPayouts.length} INSTALLMENTS
+                  {payoutError ? "PAYMENT DATA UNAVAILABLE" : `PAID TO DRIVER · ${paidPayouts.length} INSTALLMENTS`}
                 </p>
               </div>
 
@@ -684,15 +690,23 @@ function Trips() {
                 </div>
 
                 <p className="mt-2 text-[14px] font-black text-black">
-                  ₹{pendingPayoutTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                  {payoutError ? "—" : `₹${pendingPayoutTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`}
                 </p>
 
                 <p className="text-[6.5px] font-bold text-[#91877C]">
-                  DRIVER PAYOUT PENDING · {pendingPayouts.length} INSTALLMENTS
+                  {payoutError ? "PAYMENT DATA UNAVAILABLE" : `DRIVER PAYOUT PENDING · ${pendingPayouts.length} INSTALLMENTS`}
                 </p>
               </div>
             </div>
           </section>
+
+          {(invoiceError || payoutError) && (
+            <div role="alert" className="mt-3 rounded-[14px] border border-[#F0D1CC] bg-white px-3 py-2.5 text-[7px] leading-4 text-[#A64D45]">
+              {invoiceError && <p>Invoices: {invoiceError}</p>}
+              {payoutError && <p>Driver payments: {payoutError}</p>}
+              <button type="button" onClick={fetchTrips} className="mt-1 font-black underline">RETRY</button>
+            </div>
+          )}
 
           {/* =================================================
               TABS
@@ -1047,11 +1061,11 @@ function Trips() {
                   </div>
 
                   <h3 className="mt-3 text-[12px] font-black text-black">
-                    No driver payments available
+                    {payoutError ? "Driver payments unavailable" : "No driver payments yet"}
                   </h3>
 
                   <p className="mt-1 text-[7.5px] text-[#91877C]">
-                    Your two installment records will appear here when invoices are generated.
+                    {payoutError || "The admin must generate a monthly invoice before its two driver installments appear here."}
                   </p>
                 </div>
               )}

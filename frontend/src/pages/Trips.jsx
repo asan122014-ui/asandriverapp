@@ -259,17 +259,16 @@ function Trips() {
   const totalInvoices =
     invoices.length;
 
-  const pendingInvoices =
-    invoices.filter(
-      (
-        invoice
-      ) =>
-        String(
-          invoice.status ||
-            ""
-        ).toLowerCase() ===
-        "pending"
-    ).length;
+  const paidInvoices = invoices.filter((invoice) =>
+    String(invoice.status || "").toLowerCase() === "paid" ||
+    String(invoice.paymentStatus || "").toLowerCase() === "success"
+  );
+  const paidTotal = paidInvoices.reduce((sum, invoice) => sum + Number(invoice.totalAmount || 0), 0);
+  const outstandingInvoices = invoices.filter((invoice) =>
+    ["pending", "processing", "overdue"].includes(String(invoice.status || "").toLowerCase()) ||
+    String(invoice.paymentStatus || "").toLowerCase() === "pending"
+  );
+  const outstandingTotal = outstandingInvoices.reduce((sum, invoice) => sum + Number(invoice.totalAmount || 0), 0);
 
   /* =======================================================
      FILTER TRIPS
@@ -280,7 +279,7 @@ function Trips() {
     "All"
       ? tripsData
       : activeTab ===
-          "Invoices"
+          "Payments"
       ? []
       : tripsData.filter(
           (
@@ -326,6 +325,9 @@ function Trips() {
 
               totalStudents:
                 0,
+
+              paymentsReceived:
+                0,
             };
           }
 
@@ -333,6 +335,10 @@ function Trips() {
             key
           ].totalStudents +=
             1;
+
+          if (trip.paymentReceived) {
+            accumulator[key].paymentsReceived += 1;
+          }
 
           return accumulator;
         },
@@ -427,6 +433,7 @@ function Trips() {
         normalized
       ) {
         case "paid":
+        case "success":
           return {
             label:
               "PAID",
@@ -594,7 +601,7 @@ function Trips() {
               OVERVIEW
             </p>
 
-            <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className="mt-3 grid grid-cols-2 gap-2">
 
               {/* TRIPS */}
 
@@ -638,7 +645,28 @@ function Trips() {
                 </p>
               </div>
 
-              {/* PENDING */}
+              {/* PAID */}
+
+              <div className="rounded-[14px] bg-[#FFF9EE] px-2.5 py-3">
+
+                <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#FBE7E4]">
+
+                  <CheckCircle2
+                    size={14}
+                    className="text-[#4E854A]"
+                  />
+                </div>
+
+                <p className="mt-2 text-[14px] font-black text-black">
+                  ₹{paidTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                </p>
+
+                <p className="text-[6.5px] font-bold text-[#91877C]">
+                  PAID BY PARENTS
+                </p>
+              </div>
+
+              {/* OUTSTANDING */}
 
               <div className="rounded-[14px] bg-[#FFF9EE] px-2.5 py-3">
 
@@ -650,12 +678,12 @@ function Trips() {
                   />
                 </div>
 
-                <p className="mt-2 text-[18px] font-black text-black">
-                  {pendingInvoices}
+                <p className="mt-2 text-[14px] font-black text-black">
+                  ₹{outstandingTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                 </p>
 
                 <p className="text-[6.5px] font-bold text-[#91877C]">
-                  PENDING
+                  PENDING FROM PARENTS · {outstandingInvoices.length} INVOICES
                 </p>
               </div>
             </div>
@@ -671,7 +699,7 @@ function Trips() {
               "All",
               "Morning",
               "Afternoon",
-              "Invoices",
+              "Payments",
             ].map(
               (
                 tab
@@ -707,7 +735,7 @@ function Trips() {
 
             <p className="text-[8px] font-black tracking-[0.15em] text-[#B87700]">
               {activeTab ===
-              "Invoices"
+              "Payments"
                 ? "PAYMENT RECORDS"
                 : "TRIP HISTORY"}
             </p>
@@ -717,8 +745,8 @@ function Trips() {
               <h2 className="text-[18px] font-black text-black">
 
                 {activeTab ===
-                "Invoices"
-                  ? "Your Invoices"
+                "Payments"
+                  ? "Payments & Invoices"
                   : activeTab ===
                       "All"
                   ? "Recent Trips"
@@ -728,7 +756,7 @@ function Trips() {
               <span className="text-[7px] font-bold text-[#91877C]">
 
                 {activeTab ===
-                "Invoices"
+                "Payments"
                   ? `${invoices.length} TOTAL`
                   : `${groupedTrips.length} TOTAL`}
               </span>
@@ -772,7 +800,7 @@ function Trips() {
           ================================================= */}
 
           {activeTab !==
-          "Invoices" ? (
+          "Payments" ? (
             <>
 
               {/* EMPTY */}
@@ -961,6 +989,15 @@ function Trips() {
                               </div>
                             </div>
 
+                            {trip.paymentsReceived > 0 && (
+                              <div className="mt-2 flex items-center gap-2 rounded-[11px] bg-[#EDF6EB] px-3 py-2.5">
+                                <CheckCircle2 size={12} className="text-[#4E854A]" />
+                                <p className="text-[7px] font-bold text-[#4E854A]">
+                                  Payment recorded for {trip.paymentsReceived} of {trip.totalStudents} {trip.totalStudents === 1 ? "student" : "students"}
+                                </p>
+                              </div>
+                            )}
+
                             {/* FOOTER */}
 
                             <div className="mt-3 flex items-center justify-between border-t border-[#F1E9DC] pt-3">
@@ -1009,7 +1046,7 @@ function Trips() {
                   </h3>
 
                   <p className="mt-1 text-[7.5px] text-[#91877C]">
-                    Driver payment records will appear here.
+                    Payment and invoice records will appear here once the institute generates them.
                   </p>
                 </div>
               )}
@@ -1026,7 +1063,7 @@ function Trips() {
                     ) => {
                       const status =
                         getInvoiceStatus(
-                          invoice.status
+                          invoice.status || invoice.paymentStatus
                         );
 
                       return (
@@ -1056,7 +1093,7 @@ function Trips() {
                                 <div>
 
                                   <p className="text-[7px] font-black tracking-[0.12em] text-[#A0968A]">
-                                    INVOICE
+                                    MONTHLY INVOICE
                                   </p>
 
                                   <h3 className="mt-1 text-[11px] font-black text-black">
@@ -1114,16 +1151,25 @@ function Trips() {
                                 />
 
                                 <p className="text-[6px] font-bold text-[#91877C]">
-                                  AMOUNT
+                                  DRIVER DISTANCE CHARGES
                                 </p>
                               </div>
 
                               <p className="mt-1 text-[10px] font-black text-black">
                                 ₹
-                                {invoice.totalAmount ??
-                                  0}
+                                {Number(invoice.baseAmount ?? (Number(invoice.totalAmount || 0) - Number(invoice.platformCommission || 0))).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </p>
                             </div>
+
+                            <InvoiceItem
+                              label="Parent invoice total"
+                              value={`₹${Number(invoice.totalAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                            />
+
+                            <InvoiceItem
+                              label="Platform fee"
+                              value={`₹${Number(invoice.platformCommission || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                            />
 
                             {/* DUE DATE */}
 
@@ -1134,6 +1180,11 @@ function Trips() {
                                   invoice.dueDate
                                 )
                               }
+                            />
+
+                            <InvoiceItem
+                              label="Payment Method"
+                              value={invoice.paymentMethod || (["paid", "success"].includes(String(invoice.status || invoice.paymentStatus || "").toLowerCase()) ? "Paid" : "Not paid")}
                             />
                           </div>
 
@@ -1160,6 +1211,13 @@ function Trips() {
                                 </p>
                               </div>
                             )}
+
+                          {String(invoice.status || invoice.paymentStatus || "").toLowerCase() === "paid" && invoice.razorpayPaymentId && (
+                            <div className="mt-2 rounded-[11px] bg-[#F5F3EF] px-3 py-2">
+                              <p className="text-[6px] font-bold uppercase text-[#91877C]">Payment reference</p>
+                              <p className="mt-1 break-all text-[7px] font-semibold text-[#5C554D]">{invoice.razorpayPaymentId}</p>
+                            </div>
+                          )}
                         </section>
                       );
                     }

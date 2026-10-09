@@ -208,20 +208,14 @@ function Trips() {
           setPayoutError("");
           const payoutResponse = await axios.get(`${API}/api/invoices/driver/payouts`);
           setPayouts(Array.isArray(payoutResponse.data?.data) ? payoutResponse.data.data : []);
+          setLocationAdjustmentError("");
+          setLocationAdjustments(Array.isArray(payoutResponse.data?.locationAdjustments) ? payoutResponse.data.locationAdjustments : []);
         } catch (payoutError) {
           setPayoutError(payoutError?.response?.status ? `Payout service returned ${payoutError.response.status}. The backend update may still be deploying.` : "Unable to reach the driver payout service.");
           console.warn("Driver payout records are not available yet:", payoutError);
           setPayouts([]);
-        }
-
-        try {
-          setLocationAdjustmentError("");
-          const adjustmentResponse = await axios.get(`${API}/api/child-location-changes/driver`);
-          setLocationAdjustments(Array.isArray(adjustmentResponse.data?.data) ? adjustmentResponse.data.data : []);
-        } catch (adjustmentError) {
-          setLocationAdjustmentError(adjustmentError?.response?.status ? `Route update service returned ${adjustmentError.response.status}.` : "Unable to reach the route update service.");
-          console.warn("Driver route updates are not available yet:", adjustmentError);
           setLocationAdjustments([]);
+          setLocationAdjustmentError("");
         }
       } catch (
         error

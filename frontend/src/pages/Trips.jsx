@@ -1125,7 +1125,7 @@ function Trips() {
                   <div className="mb-3">
                     <p className="text-[7px] font-black tracking-[0.12em] text-[#A0968A]">PARENT PAYMENTS</p>
                     <h3 className="mt-1 text-[11px] font-black text-black">Route changes & extra distance</h3>
-                    <p className="mt-1 text-[7px] leading-4 text-[#8A8177]">These are parent-paid route charges, shown separately from your institute payouts.</p>
+                    <p className="mt-1 text-[7px] leading-4 text-[#8A8177]">The parent-paid distance charge is included in your scheduled driver payouts below. Platform fees are excluded.</p>
                   </div>
                   <div className="space-y-2.5">
                     {locationAdjustments.map((adjustment) => {

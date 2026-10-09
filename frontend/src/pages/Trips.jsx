@@ -305,13 +305,48 @@ function Trips() {
     ...payouts.map((payout) => payout.invoiceId?._id ? `invoice:${payout.invoiceId._id}` : payout.bookingId?._id ? `booking:${payout.bookingId._id}` : `payout:${payout._id}`),
   ]).size;
 
-  const paidPayouts = payouts.filter((payout) => payout.status === "Paid");
-  const pendingPayouts = payouts.filter((payout) => payout.status !== "Paid");
+  const persistedRoutePayoutRequestIds = new Set(payouts.filter((payout) => payout.payoutType === "location_adjustment").map((payout) => String(payout.locationChangeRequestId || payout.routeChange?.requestId || "")));
+  const displayOnlyRoutePayouts = locationAdjustments.flatMap((adjustment) => {
+    const requestId = String(adjustment._id || "");
+    const driverDistanceCharge = Number(adjustment.distanceCharge || 0);
+    const isPaid = adjustment.paid ?? Boolean(adjustment.paymentId);
+    if (!requestId || !isPaid || driverDistanceCharge <= 0 || persistedRoutePayoutRequestIds.has(requestId)) return [];
+    const totalPaise = Math.round(driverDistanceCharge * 100);
+    const midServicePaise = Math.round(totalPaise / 2);
+    const serviceDate = adjustment.paidAt || adjustment.appliedAt;
+    const locationLabel = adjustment.locationType === "home" ? "Home pickup" : "School drop-off";
+    const routeChange = {
+      requestId,
+      locationType: adjustment.locationType,
+      address: adjustment.address,
+      oldDistanceKm: Number(adjustment.oldDistanceKm || 0),
+      newDistanceKm: Number(adjustment.newDistanceKm || 0),
+      remainingServiceDays: Number(adjustment.remainingServiceDays || 0),
+      driverDistanceCharge,
+    };
+    return [
+      { installment: "mid_service", amount: midServicePaise / 100 },
+      { installment: "service_complete", amount: (totalPaise - midServicePaise) / 100 },
+    ].map((installment) => ({
+      _id: `route-${requestId}-${installment.installment}`,
+      locationChangeRequestId: requestId,
+      payoutType: "location_adjustment",
+      status: "Pending",
+      ...installment,
+      serviceName: `${adjustment.childName || "Child"} · ${locationLabel} route change`,
+      serviceMonth: serviceDate ? new Date(serviceDate).toISOString().slice(0, 7) : "",
+      serviceReference: `RC-${requestId.slice(-6).toUpperCase()}`,
+      routeChange,
+      proofAvailable: false,
+    }));
+  });
+  const displayPayouts = [...payouts, ...displayOnlyRoutePayouts];
+  const displayedRoutePayoutRequestIds = new Set(displayPayouts.filter((payout) => payout.payoutType === "location_adjustment").map((payout) => String(payout.locationChangeRequestId || payout.routeChange?.requestId || "")));
+  const paidPayouts = displayPayouts.filter((payout) => payout.status === "Paid");
+  const pendingPayouts = displayPayouts.filter((payout) => payout.status !== "Paid");
   const paidPayoutTotal = paidPayouts.reduce((sum, payout) => sum + Number(payout.amount || 0), 0);
   const pendingPayoutTotal = pendingPayouts.reduce((sum, payout) => sum + Number(payout.amount || 0), 0);
-  const paidRouteAdjustments = locationAdjustments.filter((adjustment) => Number(adjustment.parentAmountPaid || 0) > 0);
-  const parentRoutePaymentTotal = paidRouteAdjustments.reduce((sum, adjustment) => sum + Number(adjustment.parentAmountPaid || 0), 0);
-  const routeDistanceChargeTotal = paidRouteAdjustments.reduce((sum, adjustment) => sum + Number(adjustment.distanceCharge || 0), 0);
+  const routeUpdatesWithoutInstallments = locationAdjustments.filter((adjustment) => !displayedRoutePayoutRequestIds.has(String(adjustment._id)));
 
   /* =======================================================
      FILTER TRIPS
@@ -733,20 +768,6 @@ function Trips() {
                 )}
               </div>
 
-              {paidRouteAdjustments.length > 0 && (
-                <div className="col-span-2 rounded-[14px] border border-[#D8EBDD] bg-[#F0F9F1] px-3 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[6.5px] font-black tracking-[0.1em] text-[#4E854A]">PARENT-PAID ROUTE ADJUSTMENTS</p>
-                      <p className="mt-1 text-[7px] text-[#66806B]">{paidRouteAdjustments.length} paid location {paidRouteAdjustments.length === 1 ? "change" : "changes"}</p>
-                    </div>
-                    <p className="text-[14px] font-black text-[#2F7041]">₹{parentRoutePaymentTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                  </div>
-                  <p className="mt-2 border-t border-[#D8EBDD] pt-2 text-[6px] leading-3 text-[#66806B]">
-                    ₹{routeDistanceChargeTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} distance charges · platform fee shown separately in each adjustment record
-                  </p>
-                </div>
-              )}
             </div>
           </section>
 
@@ -827,7 +848,7 @@ function Trips() {
 
                 {activeTab ===
                 "Payments"
-                  ? `${payouts.length} INSTALLMENTS · ${locationAdjustments.length} ROUTE CHANGES`
+                  ? `${displayPayouts.length} INSTALLMENTS · ${locationAdjustments.length} ROUTE CHANGES`
                   : `${groupedTrips.length} TOTAL`}
               </span>
             </div>
@@ -1099,7 +1120,7 @@ function Trips() {
             <>
               {/* EMPTY */}
 
-              {payouts.length === 0 && locationAdjustments.length === 0 && (
+              {displayPayouts.length === 0 && locationAdjustments.length === 0 && (
                 <div className="rounded-[20px] border border-[#EEE3D1] bg-white py-12 text-center">
 
                   <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[15px] bg-[#FFF0C5]">
@@ -1120,16 +1141,19 @@ function Trips() {
                 </div>
               )}
 
-              {locationAdjustments.length > 0 && (
+              {routeUpdatesWithoutInstallments.length > 0 && (
                 <section className="mb-3 rounded-[18px] border border-[#EEE3D1] bg-white p-4">
                   <div className="mb-3">
-                    <p className="text-[7px] font-black tracking-[0.12em] text-[#A0968A]">PARENT PAYMENTS</p>
-                    <h3 className="mt-1 text-[11px] font-black text-black">Route changes & extra distance</h3>
-                    <p className="mt-1 text-[7px] leading-4 text-[#8A8177]">The parent-paid distance charge is included in your scheduled driver payouts below. Platform fees are excluded.</p>
+                    <p className="text-[7px] font-black tracking-[0.12em] text-[#A0968A]">ROUTE UPDATES</p>
+                    <h3 className="mt-1 text-[11px] font-black text-black">Changed locations</h3>
+                    <p className="mt-1 text-[7px] leading-4 text-[#8A8177]">Any added driver distance charge appears in the scheduled installments below.</p>
                   </div>
                   <div className="space-y-2.5">
-                    {locationAdjustments.map((adjustment) => {
-                      const paid = Boolean(adjustment.paymentId);
+                    {routeUpdatesWithoutInstallments.map((adjustment) => {
+                      const paid = adjustment.paid ?? Boolean(adjustment.paymentId);
+                      const driverDistancePaise = Math.round(Number(adjustment.distanceCharge || 0) * 100);
+                      const midServiceAmount = Math.round(driverDistancePaise / 2) / 100;
+                      const serviceEndAmount = (driverDistancePaise - Math.round(driverDistancePaise / 2)) / 100;
                       const locationLabel = adjustment.locationType === "home" ? "Home pickup" : "School drop-off";
                       return (
                         <article key={adjustment._id} className="rounded-[14px] border border-[#F0E4CE] bg-[#FFFBF4] p-3">
@@ -1142,7 +1166,7 @@ function Trips() {
                               </div>
                             </div>
                             <span className={`shrink-0 rounded-full px-2 py-1 text-[6px] font-black ${paid ? "bg-[#E8F5EB] text-[#347344]" : "bg-[#F3F1ED] text-[#766F66]"}`}>
-                              {paid ? "PAID" : "NO EXTRA CHARGE"}
+                              {Number(adjustment.distanceCharge || 0) > 0 ? "PAYOUT SCHEDULED" : "NO EXTRA CHARGE"}
                             </span>
                           </div>
                           <div className="mt-2 grid grid-cols-2 gap-2">
@@ -1154,17 +1178,13 @@ function Trips() {
                           {paid && (
                             <div className="mt-2 rounded-[11px] bg-[#EDF6EB] px-3 py-2.5">
                               <div className="flex justify-between gap-2 text-[7px]">
-                                <span className="text-[#52715B]">Parent paid total</span>
-                                <strong className="text-[#2F7041]">₹{Number(adjustment.parentAmountPaid || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
-                              </div>
-                              <div className="mt-1 flex justify-between gap-2 text-[7px]">
                                 <span className="text-[#52715B]">Distance charges</span>
                                 <strong className="text-[#2F7041]">₹{Number(adjustment.distanceCharge || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                               </div>
-                              {Number(adjustment.platformFee || 0) > 0 && (
-                                <p className="mt-1 text-[6px] text-[#66806B]">Platform fee ₹{Number(adjustment.platformFee).toFixed(2)} is listed separately and is not a driver distance charge.</p>
-                              )}
-                              {adjustment.paidAt && <p className="mt-1 text-[6px] text-[#66806B]">Paid {formatDate(adjustment.paidAt)}</p>}
+                              <div className="mt-2 space-y-1 border-t border-[#D8EBDD] pt-2 text-[6px] text-[#52715B]">
+                                <div className="flex justify-between gap-2"><span>After half the service</span><strong>₹{midServiceAmount.toFixed(2)}</strong></div>
+                                <div className="flex justify-between gap-2"><span>At service end</span><strong>₹{serviceEndAmount.toFixed(2)}</strong></div>
+                              </div>
                             </div>
                           )}
                           {!paid && adjustment.appliedAt && <p className="mt-2 text-[6px] text-[#91877C]">Route updated {formatDate(adjustment.appliedAt)}. No adjustment payment was due.</p>}
@@ -1177,11 +1197,11 @@ function Trips() {
 
               {/* INVOICE LIST */}
 
-              {payouts.length >
+              {displayPayouts.length >
                 0 && (
                 <div className="space-y-2.5">
 
-                  {payouts.map(
+                  {displayPayouts.map(
                     (
                       payout
                     ) => {
@@ -1283,6 +1303,12 @@ function Trips() {
                             </div>
 
                           </div>
+
+                          {payout.payoutType === "location_adjustment" && payout.routeChange && (
+                            <p className="mt-2 rounded-[11px] bg-[#FFF9EE] px-3 py-2 text-[6px] font-semibold text-[#746B61]">
+                              Route distance {Number(payout.routeChange.oldDistanceKm || 0).toFixed(2)} km → {Number(payout.routeChange.newDistanceKm || 0).toFixed(2)} km · Added {Math.max(0, Number(payout.routeChange.newDistanceKm || 0) - Number(payout.routeChange.oldDistanceKm || 0)).toFixed(2)} km
+                            </p>
+                          )}
 
                           {payout.status === "Paid" && payout.paidAt && (
                               <div className="mt-2 flex items-center gap-2 rounded-[11px] bg-[#EDF6EB] px-3 py-2">

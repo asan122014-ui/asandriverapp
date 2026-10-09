@@ -315,6 +315,9 @@ function Trips() {
   const pendingPayouts = payouts.filter((payout) => payout.status !== "Paid");
   const paidPayoutTotal = paidPayouts.reduce((sum, payout) => sum + Number(payout.amount || 0), 0);
   const pendingPayoutTotal = pendingPayouts.reduce((sum, payout) => sum + Number(payout.amount || 0), 0);
+  const paidRouteAdjustments = locationAdjustments.filter((adjustment) => Number(adjustment.parentAmountPaid || 0) > 0);
+  const parentRoutePaymentTotal = paidRouteAdjustments.reduce((sum, adjustment) => sum + Number(adjustment.parentAmountPaid || 0), 0);
+  const routeDistanceChargeTotal = paidRouteAdjustments.reduce((sum, adjustment) => sum + Number(adjustment.distanceCharge || 0), 0);
 
   /* =======================================================
      FILTER TRIPS
@@ -704,7 +707,7 @@ function Trips() {
                 </div>
 
                 <p className="mt-2 text-[14px] font-black text-black">
-                  {payoutError ? "—" : `₹${paidPayoutTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`}
+                  {payoutError ? "—" : `₹${paidPayoutTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 </p>
 
                 <p className="text-[6.5px] font-bold text-[#91877C]">
@@ -725,13 +728,31 @@ function Trips() {
                 </div>
 
                 <p className="mt-2 text-[14px] font-black text-black">
-                  {payoutError ? "—" : `₹${pendingPayoutTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`}
+                  {payoutError ? "—" : `₹${pendingPayoutTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 </p>
 
                 <p className="text-[6.5px] font-bold text-[#91877C]">
                   {payoutError ? "PAYMENT DATA UNAVAILABLE" : `DRIVER PAYOUT PENDING · ${pendingPayouts.length} INSTALLMENTS`}
                 </p>
+                {!payoutError && pendingPayouts.length > 0 && (
+                  <p className="mt-1 text-[5.5px] font-semibold leading-3 text-[#A0968A]">Driver distance charges; platform fee excluded</p>
+                )}
               </div>
+
+              {paidRouteAdjustments.length > 0 && (
+                <div className="col-span-2 rounded-[14px] border border-[#D8EBDD] bg-[#F0F9F1] px-3 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[6.5px] font-black tracking-[0.1em] text-[#4E854A]">PARENT-PAID ROUTE ADJUSTMENTS</p>
+                      <p className="mt-1 text-[7px] text-[#66806B]">{paidRouteAdjustments.length} paid location {paidRouteAdjustments.length === 1 ? "change" : "changes"}</p>
+                    </div>
+                    <p className="text-[14px] font-black text-[#2F7041]">₹{parentRoutePaymentTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  </div>
+                  <p className="mt-2 border-t border-[#D8EBDD] pt-2 text-[6px] leading-3 text-[#66806B]">
+                    ₹{routeDistanceChargeTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} distance charges · platform fee shown separately in each adjustment record
+                  </p>
+                </div>
+              )}
             </div>
           </section>
 

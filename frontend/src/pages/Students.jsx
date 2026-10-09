@@ -1,6 +1,7 @@
 import {
   useState,
   useEffect,
+  useCallback,
 } from "react";
 
 import {
@@ -22,6 +23,7 @@ import {
 } from "react-router-dom";
 
 import axios from "../utils/axiosInstance";
+import { io } from "socket.io-client";
 
 /* =========================================================
    API
@@ -91,7 +93,7 @@ function Students() {
      FETCH STUDENTS
   ======================================================= */
 
-  const fetchStudents =
+  const fetchStudents = useCallback(
     async () => {
       try {
         setLoading(true);
@@ -151,7 +153,9 @@ function Students() {
       } finally {
         setLoading(false);
       }
-    };
+    },
+    [navigate]
+  );
 
   /* =======================================================
      LOAD
@@ -159,7 +163,26 @@ function Students() {
 
   useEffect(() => {
     fetchStudents();
-  }, []);
+    const driver = getDriver();
+    const token = localStorage.getItem("accessToken");
+    if (!driver?.driverId || !token) return undefined;
+
+    const socket = io(API, {
+      auth: { token },
+      transports: ["polling", "websocket"],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+    });
+    socket.on("connect", () => {
+      socket.emit("join_driver_room", { driverId: driver.driverId });
+    });
+    socket.on("driver_route_updated", fetchStudents);
+
+    return () => {
+      socket.off("driver_route_updated", fetchStudents);
+      socket.disconnect();
+    };
+  }, [fetchStudents]);
 
   /* =======================================================
      NORMALIZE STATUS

@@ -17,6 +17,7 @@ import {
   ChevronRight,
   CalendarDays,
   Route,
+  MapPin,
 } from "lucide-react";
 
 import {
@@ -24,6 +25,7 @@ import {
 } from "react-router-dom";
 
 import axios from "../utils/axiosInstance";
+import { io } from "socket.io-client";
 
 /* =========================================================
    API
@@ -66,8 +68,10 @@ function Trips() {
   );
 
   const [payouts, setPayouts] = useState([]);
+  const [locationAdjustments, setLocationAdjustments] = useState([]);
   const [invoiceError, setInvoiceError] = useState("");
   const [payoutError, setPayoutError] = useState("");
+  const [locationAdjustmentError, setLocationAdjustmentError] = useState("");
 
   const [
     loading,
@@ -209,6 +213,16 @@ function Trips() {
           console.warn("Driver payout records are not available yet:", payoutError);
           setPayouts([]);
         }
+
+        try {
+          setLocationAdjustmentError("");
+          const adjustmentResponse = await axios.get(`${API}/api/child-location-changes/driver`);
+          setLocationAdjustments(Array.isArray(adjustmentResponse.data?.data) ? adjustmentResponse.data.data : []);
+        } catch (adjustmentError) {
+          setLocationAdjustmentError(adjustmentError?.response?.status ? `Route update service returned ${adjustmentError.response.status}.` : "Unable to reach the route update service.");
+          console.warn("Driver route updates are not available yet:", adjustmentError);
+          setLocationAdjustments([]);
+        }
       } catch (
         error
       ) {
@@ -236,6 +250,25 @@ function Trips() {
 
   useEffect(() => {
     fetchTrips();
+    const driver = getDriver();
+    const token = localStorage.getItem("accessToken");
+    if (!driver?.driverId || !token) return undefined;
+
+    const socket = io(API, {
+      auth: { token },
+      transports: ["polling", "websocket"],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+    });
+    socket.on("connect", () => {
+      socket.emit("join_driver_room", { driverId: driver.driverId });
+    });
+    socket.on("driver_route_updated", fetchTrips);
+
+    return () => {
+      socket.off("driver_route_updated", fetchTrips);
+      socket.disconnect();
+    };
   }, []);
 
   /* =======================================================
@@ -702,10 +735,11 @@ function Trips() {
             </div>
           </section>
 
-          {(invoiceError || payoutError) && (
+          {(invoiceError || payoutError || locationAdjustmentError) && (
             <div role="alert" className="mt-3 rounded-[14px] border border-[#F0D1CC] bg-white px-3 py-2.5 text-[7px] leading-4 text-[#A64D45]">
               {invoiceError && <p>Invoices: {invoiceError}</p>}
               {payoutError && <p>Driver payments: {payoutError}</p>}
+              {locationAdjustmentError && <p>Parent route changes: {locationAdjustmentError}</p>}
               <button type="button" onClick={fetchTrips} className="mt-1 font-black underline">RETRY</button>
             </div>
           )}
@@ -767,7 +801,7 @@ function Trips() {
 
                 {activeTab ===
                 "Payments"
-                  ? "Driver Payouts"
+                  ? "Payments & adjustments"
                   : activeTab ===
                       "All"
                   ? "Recent Trips"
@@ -778,7 +812,7 @@ function Trips() {
 
                 {activeTab ===
                 "Payments"
-                  ? `${payouts.length} INSTALLMENTS`
+                  ? `${payouts.length} INSTALLMENTS · ${locationAdjustments.length} ROUTE CHANGES`
                   : `${groupedTrips.length} TOTAL`}
               </span>
             </div>
@@ -1050,8 +1084,7 @@ function Trips() {
             <>
               {/* EMPTY */}
 
-              {payouts.length ===
-                0 && (
+              {payouts.length === 0 && locationAdjustments.length === 0 && (
                 <div className="rounded-[20px] border border-[#EEE3D1] bg-white py-12 text-center">
 
                   <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[15px] bg-[#FFF0C5]">
@@ -1063,13 +1096,68 @@ function Trips() {
                   </div>
 
                   <h3 className="mt-3 text-[12px] font-black text-black">
-                    {payoutError ? "Driver payments unavailable" : "No driver payments yet"}
+                    {payoutError || locationAdjustmentError ? "Payment records unavailable" : "No payment records yet"}
                   </h3>
 
                   <p className="mt-1 text-[7.5px] text-[#91877C]">
-                    {payoutError || "The admin must generate a monthly invoice before its two driver installments appear here."}
+                    {payoutError || locationAdjustmentError || "Monthly driver installments and parent-paid route adjustments will appear here."}
                   </p>
                 </div>
+              )}
+
+              {locationAdjustments.length > 0 && (
+                <section className="mb-3 rounded-[18px] border border-[#EEE3D1] bg-white p-4">
+                  <div className="mb-3">
+                    <p className="text-[7px] font-black tracking-[0.12em] text-[#A0968A]">PARENT PAYMENTS</p>
+                    <h3 className="mt-1 text-[11px] font-black text-black">Route changes & extra distance</h3>
+                    <p className="mt-1 text-[7px] leading-4 text-[#8A8177]">These are parent-paid route charges, shown separately from your institute payouts.</p>
+                  </div>
+                  <div className="space-y-2.5">
+                    {locationAdjustments.map((adjustment) => {
+                      const paid = Boolean(adjustment.paymentId);
+                      const locationLabel = adjustment.locationType === "home" ? "Home pickup" : "School drop-off";
+                      return (
+                        <article key={adjustment._id} className="rounded-[14px] border border-[#F0E4CE] bg-[#FFFBF4] p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex min-w-0 items-start gap-2">
+                              <MapPin size={13} className="mt-0.5 shrink-0 text-[#A97000]" />
+                              <div className="min-w-0">
+                                <p className="text-[8px] font-black text-black">{adjustment.childName} · {locationLabel}</p>
+                                <p className="mt-1 break-words text-[7px] leading-4 text-[#746B61]">{adjustment.address || "Updated location"}</p>
+                              </div>
+                            </div>
+                            <span className={`shrink-0 rounded-full px-2 py-1 text-[6px] font-black ${paid ? "bg-[#E8F5EB] text-[#347344]" : "bg-[#F3F1ED] text-[#766F66]"}`}>
+                              {paid ? "PAID" : "NO EXTRA CHARGE"}
+                            </span>
+                          </div>
+                          <div className="mt-2 grid grid-cols-2 gap-2">
+                            <InvoiceItem label="Route distance" value={`${Number(adjustment.oldDistanceKm || 0).toFixed(2)} km → ${Number(adjustment.newDistanceKm || 0).toFixed(2)} km`} />
+                            <InvoiceItem label="Extra distance" value={`${Number(adjustment.addedDistanceKm || 0).toFixed(2)} km`} />
+                            {paid && <InvoiceItem label="Remaining service days" value={`${Number(adjustment.remainingServiceDays || 0).toFixed(1)} days`} />}
+                            <InvoiceItem label="New monthly price" value={`₹${Number(adjustment.newMonthlyPrice || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
+                          </div>
+                          {paid && (
+                            <div className="mt-2 rounded-[11px] bg-[#EDF6EB] px-3 py-2.5">
+                              <div className="flex justify-between gap-2 text-[7px]">
+                                <span className="text-[#52715B]">Parent paid total</span>
+                                <strong className="text-[#2F7041]">₹{Number(adjustment.parentAmountPaid || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                              </div>
+                              <div className="mt-1 flex justify-between gap-2 text-[7px]">
+                                <span className="text-[#52715B]">Distance charges</span>
+                                <strong className="text-[#2F7041]">₹{Number(adjustment.distanceCharge || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                              </div>
+                              {Number(adjustment.platformFee || 0) > 0 && (
+                                <p className="mt-1 text-[6px] text-[#66806B]">Platform fee ₹{Number(adjustment.platformFee).toFixed(2)} is listed separately and is not a driver distance charge.</p>
+                              )}
+                              {adjustment.paidAt && <p className="mt-1 text-[6px] text-[#66806B]">Paid {formatDate(adjustment.paidAt)}</p>}
+                            </div>
+                          )}
+                          {!paid && adjustment.appliedAt && <p className="mt-2 text-[6px] text-[#91877C]">Route updated {formatDate(adjustment.appliedAt)}. No adjustment payment was due.</p>}
+                        </article>
+                      );
+                    })}
+                  </div>
+                </section>
               )}
 
               {/* INVOICE LIST */}

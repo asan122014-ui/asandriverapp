@@ -20,6 +20,7 @@ import {
 } from "@react-google-maps/api";
 
 import driverNavigationPointer from "../assets/driver-navigation-pointer.png";
+import { tripCompletion, turnDelta, projectOnRoute, motionPath, pointAlongPath } from "../utils/liveTripMotion";
 
 import {
   uploadMorningDropPhoto,
@@ -557,6 +558,9 @@ function ActiveTripScreen({
   const mapRef =
     useRef(null);
 
+  const mapHeadingRef =
+    useRef(null);
+
   const previousStudentRef =
     useRef(null);
 
@@ -574,6 +578,38 @@ function ActiveTripScreen({
 
   const driverMarkerFrameRef =
     useRef(null);
+  const roadPathRef = useRef([]);
+  const vehicleHeadingRef = useRef(0);
+  const [vehicleHeading, setVehicleHeading] = useState(0);
+  const lastMotionUpdateRef = useRef(null);
+
+  const applyMapHeading =
+    useCallback(
+      (heading) => {
+        const numericHeading =
+          Number(heading);
+
+        if (
+          !Number.isFinite(numericHeading) ||
+          !mapRef.current
+        ) {
+          return;
+        }
+
+        const normalizedHeading =
+          ((numericHeading % 360) + 360) % 360;
+
+        mapHeadingRef.current =
+          normalizedHeading;
+
+        mapRef.current.setHeading(
+          mapHeadingRef.current
+        );
+
+        mapRef.current.setTilt(0);
+      },
+      []
+    );
 
   const lastRouteDestination =
     useRef(null);
@@ -1072,7 +1108,7 @@ function ActiveTripScreen({
       return;
     }
 
-    const target = {
+    const rawTarget = {
       lat:
         Number(
           driverLocation.lat
@@ -1087,7 +1123,10 @@ function ActiveTripScreen({
     const start =
       animatedDriverPositionRef
         .current ||
-      target;
+      rawTarget;
+
+    const snapped = projectOnRoute(rawTarget, roadPathRef.current);
+    const target = snapped?.point || rawTarget;
 
     const movement =
       calculateDistanceMeters(
@@ -1095,16 +1134,32 @@ function ActiveTripScreen({
         target
       );
 
-    const nextHeading =
+    const speed = Number(driverLocation.speed) || 0;
+    const accuracy = Number(driverLocation.accuracy) || 0;
+    if (animatedDriverPositionRef.current && accuracy > 80) return;
+    if (animatedDriverPositionRef.current && movement < Math.min(8, Math.max(3, accuracy * 0.1)) && speed < 1.5) return;
+    const startHeading = vehicleHeadingRef.current;
+    const gpsHeading =
       Number.isFinite(
-        movement
+        driverLocation.heading
       ) &&
-      movement >= 1
-        ? calculateBearing(
-            start,
-            target
-          )
+      driverLocation.heading >= 0 && speed >= 1.5
+        ? driverLocation.heading
         : null;
+
+    const nextHeading =
+      gpsHeading !== null
+        ? gpsHeading
+        : Number.isFinite(movement) && movement >= 3
+          ? calculateBearing(
+              start,
+              target
+            )
+          : startHeading;
+    const path = motionPath(start, target, roadPathRef.current);
+    const now = Date.now();
+    const duration = lastMotionUpdateRef.current ? Math.max(900, Math.min(3000, now - lastMotionUpdateRef.current)) : 900;
+    lastMotionUpdateRef.current = now;
 
     if (
       driverMarkerFrameRef
@@ -1119,9 +1174,6 @@ function ActiveTripScreen({
     let startedAt =
       null;
 
-    const duration =
-      850;
-
     const animate =
       (
         timestamp
@@ -1133,16 +1185,6 @@ function ActiveTripScreen({
           startedAt =
             timestamp;
 
-          if (
-            nextHeading !==
-            null
-          ) {
-            // Navigation mode: turn the map to the vehicle's live heading.
-            // The driver arrow itself remains upright at the top of the screen.
-            mapRef.current?.setHeading(
-              nextHeading
-            );
-          }
         }
 
         const progress =
@@ -1153,26 +1195,13 @@ function ActiveTripScreen({
             1
           );
 
-        const easedProgress =
-          1 -
-          Math.pow(
-            1 - progress,
-            3
-          );
+        const easedProgress = progress;
 
-        const position = {
-          lat:
-            start.lat +
-            (target.lat -
-              start.lat) *
-              easedProgress,
-
-          lng:
-            start.lng +
-            (target.lng -
-              start.lng) *
-              easedProgress,
-        };
+        const position = pointAlongPath(path, easedProgress);
+        const course = (startHeading + turnDelta(startHeading, nextHeading) * easedProgress + 360) % 360;
+        vehicleHeadingRef.current = course;
+        setVehicleHeading(course);
+        applyMapHeading(course);
 
         animatedDriverPositionRef.current =
           position;
@@ -1209,6 +1238,7 @@ function ActiveTripScreen({
     };
   }, [
     driverLocation,
+    applyMapHeading,
   ]);
 
   /* =======================================================
@@ -1399,7 +1429,8 @@ function ActiveTripScreen({
         student.status ===
           "onboard" ||
         student.status ===
-          "picked_up"
+          "picked_up" ||
+        student.status === "dropped"
     ).length;
 
   const dropped =
@@ -1422,13 +1453,6 @@ function ActiveTripScreen({
           "absent"
     ).length;
 
-  const awaitingPickup =
-    students.filter(
-      (student) =>
-        student.status ===
-        "waiting"
-    ).length;
-
   const progress =
     useMemo(
       () => {
@@ -1438,24 +1462,7 @@ function ActiveTripScreen({
           return 0;
         }
 
-        const completed =
-          students.filter(
-            (student) =>
-              student.status ===
-                "onboard" ||
-              student.status ===
-                "picked_up" ||
-              student.status ===
-                "dropped" ||
-              student.status ===
-                "absent"
-          ).length;
-
-        return (
-          completed /
-          total
-        ) *
-          100;
+        return tripCompletion(students, total);
       },
       [
         total,
@@ -1541,7 +1548,10 @@ function ActiveTripScreen({
     useCallback(
       (
         lat,
-        lng
+        lng,
+        heading,
+        speed,
+        accuracy
       ) => {
         if (
           !driverRef.current
@@ -1549,12 +1559,24 @@ function ActiveTripScreen({
           return;
         }
 
+        const numericHeading =
+          typeof heading === "number" &&
+          Number.isFinite(heading) &&
+          heading >= 0
+            ? heading
+            : null;
+
         const newLocation = {
           lat:
             Number(lat),
 
           lng:
             Number(lng),
+
+          heading:
+            numericHeading,
+          speed: Number.isFinite(speed) ? speed : 0,
+          accuracy: Number.isFinite(accuracy) ? accuracy : null,
         };
 
         setDriverLocation(
@@ -1573,6 +1595,12 @@ function ActiveTripScreen({
 
             lng:
               Number(lng),
+
+            heading: numericHeading,
+
+            speed: Number.isFinite(speed) && speed >= 0 ? speed : 0,
+
+            accuracy: Number.isFinite(accuracy) && accuracy >= 0 ? accuracy : null,
 
             eta,
           }
@@ -1668,12 +1696,18 @@ function ActiveTripScreen({
               const {
                 latitude,
                 longitude,
+                heading,
+                speed,
+                accuracy,
               } =
                 position.coords;
 
               sendLocationToServer(
                 latitude,
-                longitude
+                longitude,
+                heading,
+                speed,
+                accuracy
               );
             },
 
@@ -1785,12 +1819,18 @@ function ActiveTripScreen({
                 const {
                   latitude,
                   longitude,
+                  heading,
+                  speed,
+                  accuracy,
                 } =
                   position.coords;
 
                 sendLocationToServer(
                   latitude,
-                  longitude
+                  longitude,
+                  heading,
+                  speed,
+                  accuracy
                 );
               }
             );
@@ -2206,6 +2246,8 @@ function ActiveTripScreen({
             setDirections(
               response
             );
+            const roadPoints = response.routes[0].legs.flatMap((leg) => (leg.steps || []).flatMap((step) => step.path || []));
+            roadPathRef.current = (roadPoints.length ? roadPoints : response.routes[0].overview_path || []).map((point) => ({ lat: point.lat(), lng: point.lng() }));
 
             const leg =
               response.routes[0]
@@ -2268,8 +2310,13 @@ function ActiveTripScreen({
                 destination
               );
 
-              mapRef.current.fitBounds(
-                bounds
+              if (!animatedDriverPositionRef.current) mapRef.current.fitBounds(bounds);
+
+              // fitBounds resets Google Maps heading, so restore the driver's
+              // current course after each route refresh.
+              mapRef.current.setTilt(0);
+              mapRef.current.setHeading(
+                mapHeadingRef.current ?? 0
               );
             }
           }
@@ -3930,7 +3977,7 @@ function ActiveTripScreen({
                 containerStyle
               }
               center={
-                safeDriverLocation ||
+                animatedDriverLocation || safeDriverLocation ||
                 DEFAULT_MAP_CENTER
               }
               zoom={15}
@@ -3940,9 +3987,11 @@ function ActiveTripScreen({
                 mapRef.current =
                   map;
 
-                // Start north-up; live GPS updates rotate this map beneath the arrow.
-                map.setHeading(0);
-                map.setTilt(45);
+                // Use vector rendering: the default raster map ignores heading changes.
+                map.setTilt(0);
+                map.setHeading(
+                  mapHeadingRef.current ?? 0
+                );
               }}
               onUnmount={() => {
                 mapRef.current =
@@ -3965,10 +4014,13 @@ function ActiveTripScreen({
                   false,
 
                 rotateControl:
-                  true,
+                  false,
+
+                renderingType:
+                  window.google.maps.RenderingType.VECTOR,
 
                 tilt:
-                  45,
+                  0,
 
                 clickableIcons:
                   false,
@@ -3998,7 +4050,7 @@ function ActiveTripScreen({
                         "42px",
 
                       transform:
-                        "translate(-50%, -50%)",
+                        `translate(-50%, -50%) rotate(${turnDelta(mapHeadingRef.current ?? 0, vehicleHeading)}deg)`,
 
                       transformOrigin:
                         "center",
@@ -4107,6 +4159,8 @@ function ActiveTripScreen({
                   options={{
                     suppressMarkers:
                       true,
+                    preserveViewport: true,
+                    polylineOptions: { strokeColor: "#2563EB", strokeWeight: 6, strokeOpacity: 1 },
                   }}
                 />
               )}
@@ -4297,7 +4351,7 @@ function ActiveTripScreen({
                 dropped
               }
               remaining={
-                awaitingPickup
+                actualRemaining
               }
               progress={
                 progress

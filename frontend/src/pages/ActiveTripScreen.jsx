@@ -409,6 +409,8 @@ function ActiveTripScreen({
     setStudents,
   ] = useState([]);
 
+  const [gpsError, setGpsError] = useState("");
+
   const [
     driverLocation,
     setDriverLocation,
@@ -1579,9 +1581,8 @@ function ActiveTripScreen({
           accuracy: Number.isFinite(accuracy) ? accuracy : null,
         };
 
-        setDriverLocation(
-          newLocation
-        );
+        setGpsError("");
+        setDriverLocation(newLocation);
 
         socket.emit(
           "send_location",
@@ -1719,18 +1720,9 @@ function ActiveTripScreen({
                 error
               );
 
-              if (
-                import.meta.env.DEV
-              ) {
-                console.warn(
-                  "Using Hyderabad development fallback"
-                );
-
-                sendLocationToServer(
-                  17.385044,
-                  78.486671
-                );
-              }
+              setGpsError(error.code === 1 ? "Location access is blocked. Allow location for this app in your browser settings." : "GPS is unavailable. Check device location services and wait for a GPS signal.");
+              setDriverLocation(null);
+              setDirections(null);
             },
 
             {
@@ -3971,6 +3963,13 @@ function ActiveTripScreen({
               message="Getting GPS and route information."
               loading
             />
+          ) : !driverLocation ? (
+            <MapLoadingState
+              title={gpsError ? "Driver location unavailable" : "Waiting for driver GPS"}
+              message={gpsError || "Your current location will appear once GPS is available."}
+              error={Boolean(gpsError)}
+              loading={!gpsError}
+            />
           ) : (
             <GoogleMap
               mapContainerStyle={
@@ -4016,8 +4015,7 @@ function ActiveTripScreen({
                 rotateControl:
                   false,
 
-                renderingType:
-                  window.google.maps.RenderingType.VECTOR,
+                mapId: import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || "DEMO_MAP_ID",
 
                 tilt:
                   0,

@@ -50,6 +50,8 @@ function DriverLogin() {
      LOGIN
   ======================================================= */
 
+  const [reviewAccess, setReviewAccess] = useState(false);
+
   const [
     loginEmail,
     setLoginEmail,
@@ -580,6 +582,7 @@ function DriverLogin() {
           return;
         }
 
+        setReviewAccess(res.data?.reviewAccess === true);
         setLoginOtpSent(
           true
         );
@@ -593,7 +596,7 @@ function DriverLogin() {
         );
 
         toast.success(
-          "OTP sent to your email"
+          res.data?.message || "OTP sent to your email"
         );
       } catch (
         error
@@ -1294,11 +1297,11 @@ function DriverLogin() {
                           </p>
 
                           <h2 className="mt-2 text-[22px] font-black tracking-[-0.025em] text-black">
-                            Check your inbox.
+                            {reviewAccess ? "Enter your review code." : "Check your inbox."}
                           </h2>
 
                           <p className="mt-2 text-[8.5px] leading-[1.7] text-[#8C8276]">
-                            Enter the 6-digit OTP sent to
+                            {reviewAccess ? "Use the reusable 6-digit code provided in Play Console for" : "Enter the 6-digit OTP sent to"}
                           </p>
 
                           <p className="mt-1 max-w-[270px] break-all text-[9px] font-black text-black">

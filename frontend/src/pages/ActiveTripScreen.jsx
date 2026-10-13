@@ -3551,9 +3551,7 @@ function ActiveTripScreen({
 
         setPhotoType("");
 
-        await fetchStudents();
-
-        await fetchTripProgress();
+        await Promise.all([fetchStudents(), fetchTripProgress()]);
 
         setDirections(
           null
@@ -3721,9 +3719,7 @@ function ActiveTripScreen({
           `/trip/pickup/${tripId}`
         );
 
-        await fetchStudents();
-
-        await fetchTripProgress();
+        await Promise.all([fetchStudents(), fetchTripProgress()]);
 
         window.setTimeout(
           () => {
@@ -3799,9 +3795,7 @@ function ActiveTripScreen({
             `/trip/drop/${tripId}`
           );
 
-          await fetchStudents();
-
-          await fetchTripProgress();
+          await Promise.all([fetchStudents(), fetchTripProgress()]);
 
           setDirections(
             null
@@ -3866,9 +3860,7 @@ function ActiveTripScreen({
           }
         );
 
-        await fetchStudents();
-
-        await fetchTripProgress();
+        await Promise.all([fetchStudents(), fetchTripProgress()]);
 
         setDirections(
           null

@@ -120,123 +120,38 @@ function Trips() {
      FETCH TRIPS
   ======================================================= */
 
-  const fetchTrips =
-    async () => {
-      try {
-        setLoading(
-          true
-        );
-
-        setError(
-          ""
-        );
-
-        const driver =
-          getDriver();
-
-        if (
-          !driver?.driverId
-        ) {
-          navigate(
-            "/"
-          );
-
-          return;
-        }
-
-        /* =================================================
-           TRIP HISTORY
-        ================================================= */
-
-        const tripResponse =
-          await axios.get(
-            `${API}/api/trip/history/${driver.driverId}`
-          );
-
-        const tripData =
-          Array.isArray(
-            tripResponse.data
-              ?.data
-          )
-            ? tripResponse
-                .data.data
-            : [];
-
-        setTripsData(
-          tripData
-        );
-
-        /* =================================================
-           INVOICES
-        ================================================= */
-
+  const fetchTrips = async () => {
+    const driver = getDriver();
+    if (!driver?.driverId) { navigate("/"); return; }
+    setLoading(true);
+    setError("");
+    // Independent sections load concurrently; history is usable before payments finish.
+    await Promise.allSettled([
+      (async () => {
         try {
-          setInvoiceError("");
-          const invoiceResponse =
-            await axios.get(
-              `${API}/api/invoices/driver/${driver.driverId}`
-            );
-
-          const invoiceData =
-            Array.isArray(
-              invoiceResponse
-                .data?.data
-            )
-              ? invoiceResponse
-                  .data.data
-              : [];
-
-          setInvoices(
-            invoiceData
-          );
-
-        } catch (
-          invoiceError
-        ) {
-          setInvoiceError(invoiceError?.response?.status ? `Invoice service returned ${invoiceError.response.status}.` : "Unable to reach the invoice service.");
-          console.log(
-            "Invoice API not ready:",
-            invoiceError
-          );
-
-          setInvoices(
-            []
-          );
-        }
-
+          const { data } = await axios.get(`${API}/api/trip/history/${driver.driverId}`);
+          setTripsData(Array.isArray(data?.data) ? data.data : []);
+        } catch (error) { setError(error?.response?.data?.message || "Unable to load trip history."); }
+        finally { setLoading(false); }
+      })(),
+      (async () => {
+        setInvoiceError("");
         try {
-          setPayoutError("");
-          const payoutResponse = await axios.get(`${API}/api/invoices/driver/payouts`);
-          setPayouts(Array.isArray(payoutResponse.data?.data) ? payoutResponse.data.data : []);
-          setLocationAdjustmentError("");
-          setLocationAdjustments(Array.isArray(payoutResponse.data?.locationAdjustments) ? payoutResponse.data.locationAdjustments : []);
-        } catch (payoutError) {
-          setPayoutError(payoutError?.response?.status ? `Payout service returned ${payoutError.response.status}. The backend update may still be deploying.` : "Unable to reach the driver payout service.");
-          console.warn("Driver payout records are not available yet:", payoutError);
-          setPayouts([]);
-          setLocationAdjustments([]);
-          setLocationAdjustmentError("");
-        }
-      } catch (
-        error
-      ) {
-        console.error(
-          "Trips fetch error:",
-          error
-        );
-
-        setError(
-          error?.response
-            ?.data
-            ?.message ||
-            "Unable to load trip history."
-        );
-      } finally {
-        setLoading(
-          false
-        );
-      }
-    };
+          const { data } = await axios.get(`${API}/api/invoices/driver/${driver.driverId}`);
+          setInvoices(Array.isArray(data?.data) ? data.data : []);
+        } catch { setInvoiceError("Unable to load invoices. Please retry."); }
+      })(),
+      (async () => {
+        setPayoutError("");
+        setLocationAdjustmentError("");
+        try {
+          const { data } = await axios.get(`${API}/api/invoices/driver/payouts`);
+          setPayouts(Array.isArray(data?.data) ? data.data : []);
+          setLocationAdjustments(Array.isArray(data?.locationAdjustments) ? data.locationAdjustments : []);
+        } catch { setPayoutError("Unable to load driver payments. Please retry."); }
+      })(),
+    ]);
+  };
 
   /* =======================================================
      LOAD

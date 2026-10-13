@@ -254,7 +254,7 @@ function DriverDashboard() {
 
   useEffect(() => {
     refreshBookingOffers();
-    const timer = window.setInterval(refreshBookingOffers, 5000);
+    const timer = window.setInterval(() => { if (document.visibilityState === "visible") refreshBookingOffers(); }, 15000);
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") refreshBookingOffers();
     };
@@ -546,7 +546,7 @@ function DriverDashboard() {
         try {
           const res =
             await axios.get(
-              "/notifications"
+              "/notifications?countOnly=true"
             );
 
           const items =
@@ -556,8 +556,7 @@ function DriverDashboard() {
               ? res.data.data
               : [];
 
-          const unread =
-            items.filter(
+          const unread = res?.data?.unreadCount ?? items.filter(
               (item) =>
                 !item.read
             ).length;
@@ -1920,7 +1919,7 @@ function DriverDashboard() {
                   type="button"
                   onClick={() =>
                     navigate(
-                      "/notifications"
+                      "/notifications?countOnly=true"
                     )
                   }
                   className="relative flex h-11 w-11 items-center justify-center rounded-[15px] border border-[#EEE1CB] bg-[#FFFDF8]"

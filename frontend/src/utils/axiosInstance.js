@@ -106,4 +106,19 @@ axiosInstance.interceptors.response.use(
   }
 );
 
+// Share identical in-flight reads; do not cache completed responses or writes.
+const pendingReads = new Map();
+const originalGet = axiosInstance.get.bind(axiosInstance);
+axiosInstance.get = (url, config = {}) => {
+  if (config.signal || config.cancelToken) return originalGet(url, config);
+  const key = JSON.stringify([url, config, localStorage.getItem("accessToken")]);
+  if (pendingReads.has(key)) return pendingReads.get(key);
+  const request = originalGet(url, config).then(
+    (response) => { pendingReads.delete(key); return response; },
+    (error) => { pendingReads.delete(key); throw error; }
+  );
+  pendingReads.set(key, request);
+  return request;
+};
+
 export default axiosInstance;

@@ -1559,7 +1559,7 @@ function DriverLogin() {
                       <FieldLabel label="LICENSE NUMBER" error={registrationErrors.licenseNumber} showError={attemptedStep === 3}>
                         <input
                           type="text"
-                          placeholder="License number"
+                          placeholder="e.g. TS0920200012345"
                           value={licenseNumber}
                           onChange={(e) =>
                             setLicenseNumber(

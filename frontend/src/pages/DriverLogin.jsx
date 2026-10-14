@@ -1073,10 +1073,10 @@ function DriverLogin() {
   ======================================================= */
 
   const inputClass =
-    "mt-2 h-[54px] w-full rounded-[15px] border border-[#E8DED0] bg-white px-4 text-[10px] font-semibold text-black outline-none transition placeholder:text-[#B3AAA0] focus:border-[#D9A534]";
+    "mt-2 h-[54px] w-full rounded-[15px] border border-[#E8DED0] bg-white px-4 text-base font-semibold text-black outline-none transition placeholder:text-[#B3AAA0] focus:border-[#D9A534]";
 
   const otpInputClass =
-    "mt-3 h-[62px] w-full rounded-[16px] border border-[#E8DED0] bg-white px-4 text-center text-[25px] font-black tracking-[0.34em] text-black outline-none transition placeholder:text-[#D0C8BE] focus:border-[#D9A534]";
+    "mt-3 h-[62px] w-full rounded-[16px] border border-[#E8DED0] bg-white px-4 text-center text-[25px] font-black tracking-[0.18em] text-black outline-none transition placeholder:text-[#D0C8BE] focus:border-[#D9A534]";
 
   return (
     <div className="min-h-screen bg-[#FFF9EE]">
@@ -1092,19 +1092,19 @@ function DriverLogin() {
               BRAND BAR
           ================================================= */}
 
-          <header className="flex items-center justify-between px-1">
+          <header className="flex flex-wrap items-center justify-between gap-3 px-1">
             <div>
-              <p className="text-[17px] font-black tracking-[-0.025em] text-black">
+              <p className="text-xl font-black tracking-[-0.025em] text-black">
                 ASAN Captain
               </p>
 
-              <p className="mt-0.5 text-[6.5px] font-bold tracking-[0.15em] text-[#B87700]">
+              <p className="mt-0.5 text-xs font-bold tracking-[0.15em] text-[#B87700]">
                 DRIVER EXPERIENCE
               </p>
             </div>
 
             <div className="rounded-full border border-[#EED69B] bg-[#FFF6DB] px-3 py-1.5">
-              <p className="text-[6px] font-black tracking-[0.13em] text-[#956400]">
+              <p className="text-xs font-black tracking-[0.13em] text-[#956400]">
                 SECURE ACCESS
               </p>
             </div>
@@ -1115,16 +1115,16 @@ function DriverLogin() {
           ================================================= */}
 
           <section className="px-1 pb-5 pt-9">
-            <p className="text-[7px] font-black tracking-[0.18em] text-[#B87700]">
+            <p className="text-xs font-black tracking-[0.18em] text-[#B87700]">
               YOUR DRIVER WORKSPACE
             </p>
 
-            <h1 className="mt-3 max-w-[350px] text-[30px] font-black leading-[1.06] tracking-[-0.045em] text-black">
+            <h1 className="mt-3 max-w-[350px] text-[clamp(1.75rem,7vw,2.25rem)] font-black leading-[1.15] tracking-[-0.045em] text-black">
               Everything you need,
               <span className="text-[#B87700]"> before the first pickup.</span>
             </h1>
 
-            <p className="mt-3 max-w-[360px] text-[9px] leading-[1.75] text-[#8C8276]">
+            <p className="mt-3 max-w-[360px] text-sm leading-[1.75] text-[#8C8276]">
               Sign in with your registered email or create your Captain account.
               OTP verification keeps access simple and secure.
             </p>
@@ -1137,7 +1137,7 @@ function DriverLogin() {
               ].map((item) => (
                 <span
                   key={item}
-                  className="rounded-full border border-[#EEE1CB] bg-[#FFFDF8] px-3 py-1.5 text-[6.5px] font-bold text-[#8C8276]"
+                  className="rounded-full border border-[#EEE1CB] bg-[#FFFDF8] px-3 py-1.5 text-xs font-bold text-[#8C8276]"
                 >
                   {item}
                 </span>
@@ -1163,7 +1163,7 @@ function DriverLogin() {
                     setActiveTab("login");
                     setSignupStep(1);
                   }}
-                  className={`h-[43px] rounded-[13px] text-[8px] font-black transition ${
+                  className={`h-[43px] rounded-[13px] text-sm font-black transition ${
                     activeTab === "login"
                       ? "bg-white text-black shadow-sm"
                       : "text-[#968C80]"
@@ -1177,7 +1177,7 @@ function DriverLogin() {
                   onClick={() =>
                     setActiveTab("signup")
                   }
-                  className={`h-[43px] rounded-[13px] text-[8px] font-black transition ${
+                  className={`h-[43px] rounded-[13px] text-sm font-black transition ${
                     activeTab === "signup"
                       ? "bg-white text-black shadow-sm"
                       : "text-[#968C80]"
@@ -1197,15 +1197,15 @@ function DriverLogin() {
                     <>
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <p className="text-[7px] font-black tracking-[0.15em] text-[#B87700]">
+                          <p className="text-xs font-black tracking-[0.15em] text-[#B87700]">
                             WELCOME BACK
                           </p>
 
-                          <h2 className="mt-2 text-[22px] font-black tracking-[-0.025em] text-black">
+                          <h2 className="mt-2 text-2xl font-black tracking-[-0.025em] text-black">
                             Sign in to your duty.
                           </h2>
 
-                          <p className="mt-2 max-w-[315px] text-[8.5px] leading-[1.7] text-[#8C8276]">
+                          <p className="mt-2 max-w-[315px] text-sm leading-[1.7] text-[#8C8276]">
                             Enter the email linked to your Driver account. We&apos;ll send a 6-digit OTP.
                           </p>
                         </div>
@@ -1219,7 +1219,7 @@ function DriverLogin() {
                       </div>
 
                       <div className="mt-6">
-                        <label className="text-[7px] font-black tracking-[0.11em] text-[#8F8579]">
+                        <label className="text-xs font-black tracking-[0.11em] text-[#8F8579]">
                           REGISTERED EMAIL
                         </label>
 
@@ -1235,7 +1235,7 @@ function DriverLogin() {
                           className={inputClass}
                         />
 
-                        <p className="mt-2 text-[6.5px] leading-[1.5] text-[#A39A90]">
+                        <p className="mt-2 text-xs leading-[1.5] text-[#756B60]">
                           Use the same email you registered with ASAN Captain.
                         </p>
                       </div>
@@ -1251,7 +1251,7 @@ function DriverLogin() {
                         onClick={
                           handleSendLoginOtp
                         }
-                        className="mt-5 flex h-[52px] w-full items-center justify-center rounded-[15px] bg-[#FFB000] text-[9px] font-black text-black transition active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-[#E7E1D7] disabled:text-[#AAA095]"
+                        className="mt-5 flex h-[52px] w-full items-center justify-center rounded-[15px] bg-[#FFB000] text-sm font-black text-black transition active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-[#E7E1D7] disabled:text-[#756B60]"
                       >
                         {loading
                           ? "SENDING OTP..."
@@ -1264,7 +1264,7 @@ function DriverLogin() {
                           className="mt-0.5 shrink-0 text-[#B87700]"
                         />
 
-                        <p className="text-[7px] leading-[1.55] text-[#8C8276]">
+                        <p className="text-xs leading-[1.55] text-[#8C8276]">
                           Your password is never required. Access is verified through your registered email.
                         </p>
                       </div>
@@ -1282,7 +1282,7 @@ function DriverLogin() {
                             ""
                           );
                         }}
-                        className="flex items-center gap-1.5 text-[7px] font-black text-[#8C8276]"
+                        className="flex items-center gap-1.5 text-xs font-black text-[#8C8276]"
                       >
                         <ArrowLeft
                           size={13}
@@ -1292,19 +1292,19 @@ function DriverLogin() {
 
                       <div className="mt-6 flex items-start justify-between gap-4">
                         <div>
-                          <p className="text-[7px] font-black tracking-[0.15em] text-[#B87700]">
+                          <p className="text-xs font-black tracking-[0.15em] text-[#B87700]">
                             VERIFY ACCESS
                           </p>
 
-                          <h2 className="mt-2 text-[22px] font-black tracking-[-0.025em] text-black">
+                          <h2 className="mt-2 text-2xl font-black tracking-[-0.025em] text-black">
                             {reviewAccess ? "Enter your review code." : "Check your inbox."}
                           </h2>
 
-                          <p className="mt-2 text-[8.5px] leading-[1.7] text-[#8C8276]">
+                          <p className="mt-2 text-sm leading-[1.7] text-[#8C8276]">
                             {reviewAccess ? "Use the reusable 6-digit code provided in Play Console for" : "Enter the 6-digit OTP sent to"}
                           </p>
 
-                          <p className="mt-1 max-w-[270px] break-all text-[9px] font-black text-black">
+                          <p className="mt-1 max-w-[270px] break-all text-sm font-black text-black">
                             {loginEmail}
                           </p>
                         </div>
@@ -1318,7 +1318,7 @@ function DriverLogin() {
                       </div>
 
                       <div className="mt-6">
-                        <label className="text-[7px] font-black tracking-[0.11em] text-[#8F8579]">
+                        <label className="text-xs font-black tracking-[0.11em] text-[#8F8579]">
                           6-DIGIT OTP
                         </label>
 
@@ -1356,7 +1356,7 @@ function DriverLogin() {
                         onClick={
                           handleVerifyLoginOtp
                         }
-                        className="mt-5 h-[52px] w-full rounded-[15px] bg-[#FFB000] text-[9px] font-black text-black transition active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-[#E7E1D7] disabled:text-[#AAA095]"
+                        className="mt-5 h-[52px] w-full rounded-[15px] bg-[#FFB000] text-sm font-black text-black transition active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-[#E7E1D7] disabled:text-[#756B60]"
                       >
                         {loading
                           ? "VERIFYING..."
@@ -1372,7 +1372,7 @@ function DriverLogin() {
                         onClick={
                           handleSendLoginOtp
                         }
-                        className="mt-4 flex w-full items-center justify-center gap-2 text-[7.5px] font-black text-[#B87700] disabled:text-[#AAA095]"
+                        className="mt-4 flex w-full items-center justify-center gap-2 text-sm font-black text-[#B87700] disabled:text-[#756B60]"
                       >
                         <RefreshCw
                           size={13}
@@ -1399,16 +1399,16 @@ function DriverLogin() {
                   <div className="mb-6">
                     <div className="flex items-end justify-between">
                       <div>
-                        <p className="text-[7px] font-black tracking-[0.15em] text-[#B87700]">
+                        <p className="text-xs font-black tracking-[0.15em] text-[#B87700]">
                           CAPTAIN ONBOARDING
                         </p>
 
-                        <p className="mt-1 text-[8px] font-bold text-[#8C8276]">
+                        <p className="mt-1 text-sm font-bold text-[#8C8276]">
                           Step {signupStep} of 7
                         </p>
                       </div>
 
-                      <p className="text-[7px] font-black text-[#B87700]">
+                      <p className="text-xs font-black text-[#B87700]">
                         {Math.round(
                           (signupStep / 7) *
                             100
@@ -1491,7 +1491,7 @@ function DriverLogin() {
                           className={inputClass}
                         />
 
-                        <p className="mt-2 text-[6.5px] text-[#A39A90]">
+                        <p className="mt-2 text-xs text-[#756B60]">
                           This email will be used for future OTP sign-ins.
                         </p>
                       </FieldLabel>
@@ -1546,11 +1546,11 @@ function DriverLogin() {
 
                       {address && (
                         <div className="mt-4 rounded-[15px] border border-[#DCEAD8] bg-[#F5FBF3] p-4">
-                          <p className="text-[7px] font-black tracking-[0.1em] text-[#4E854A]">
+                          <p className="text-xs font-black tracking-[0.1em] text-[#4E854A]">
                             SELECTED LOCATION
                           </p>
 
-                          <p className="mt-2 text-[8px] leading-[1.6] text-[#6F7E6D]">
+                          <p className="mt-2 text-sm leading-[1.6] text-[#6F7E6D]">
                             {address}
                           </p>
                         </div>
@@ -1728,7 +1728,7 @@ function DriverLogin() {
                         setSignupStep(3)
                       }
                     >
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 min-[360px]:grid-cols-3 gap-2">
                         {[
                           "Aadhaar",
                           "Voter",
@@ -1742,7 +1742,7 @@ function DriverLogin() {
                                 type
                               )
                             }
-                            className={`min-h-[46px] rounded-[14px] border px-2 text-[7.5px] font-black transition ${
+                            className={`min-h-[46px] rounded-[14px] border px-2 text-sm font-black transition ${
                               selectedId === type
                                 ? "border-[#E8B949] bg-[#FFF3D3] text-black"
                                 : "border-[#EEE4D5] bg-white text-[#8C8276]"
@@ -1879,7 +1879,7 @@ function DriverLogin() {
                         onClick={
                           handleSendRegisterOtp
                         }
-                        className="mt-5 h-[52px] w-full rounded-[15px] bg-[#FFB000] text-[9px] font-black text-black transition active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-[#E7E1D7] disabled:text-[#AAA095]"
+                        className="mt-5 h-[52px] w-full rounded-[15px] bg-[#FFB000] text-sm font-black text-black transition active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-[#E7E1D7] disabled:text-[#756B60]"
                       >
                         {loading
                           ? "SENDING OTP..."
@@ -1900,17 +1900,17 @@ function DriverLogin() {
                       }
                     >
                       <div className="rounded-[15px] bg-[#FFF9EE] px-4 py-3">
-                        <p className="text-[6.5px] font-black tracking-[0.1em] text-[#A0968A]">
+                        <p className="text-xs font-black tracking-[0.1em] text-[#A0968A]">
                           OTP SENT TO
                         </p>
 
-                        <p className="mt-1 break-all text-[8.5px] font-black text-black">
+                        <p className="mt-1 break-all text-sm font-black text-black">
                           {email}
                         </p>
                       </div>
 
                       <div className="mt-4">
-                        <label className="text-[7px] font-black tracking-[0.11em] text-[#8F8579]">
+                        <label className="text-xs font-black tracking-[0.11em] text-[#8F8579]">
                           6-DIGIT OTP
                         </label>
 
@@ -1948,7 +1948,7 @@ function DriverLogin() {
                         onClick={
                           handleCompleteRegistration
                         }
-                        className="mt-5 h-[52px] w-full rounded-[15px] bg-[#FFB000] text-[9px] font-black text-black transition active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-[#E7E1D7] disabled:text-[#AAA095]"
+                        className="mt-5 h-[52px] w-full rounded-[15px] bg-[#FFB000] text-sm font-black text-black transition active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-[#E7E1D7] disabled:text-[#756B60]"
                       >
                         {loading
                           ? "CREATING ACCOUNT..."
@@ -1965,7 +1965,7 @@ function DriverLogin() {
                         onClick={
                           handleSendRegisterOtp
                         }
-                        className="mt-4 flex w-full items-center justify-center gap-2 text-[7.5px] font-black text-[#B87700] disabled:text-[#AAA095]"
+                        className="mt-4 flex w-full items-center justify-center gap-2 text-sm font-black text-[#B87700] disabled:text-[#756B60]"
                       >
                         <RefreshCw
                           size={13}
@@ -1982,7 +1982,7 @@ function DriverLogin() {
                           className="mt-0.5 shrink-0 text-[#4E854A]"
                         />
 
-                        <p className="text-[7px] leading-[1.6] text-[#5D755A]">
+                        <p className="text-xs leading-[1.6] text-[#5D755A]">
                           Your Driver account is created only after successful OTP verification.
                         </p>
                       </div>
@@ -1998,7 +1998,7 @@ function DriverLogin() {
           ================================================= */}
 
           <div className="px-2 pt-5 text-center">
-            <p className="text-[6.5px] leading-[1.6] text-[#AAA095]">
+            <p className="text-xs leading-[1.6] text-[#756B60]">
               ASAN Captain • Secure Driver Access
             </p>
           </div>
@@ -2025,7 +2025,7 @@ function StepFrame({
         <button
           type="button"
           onClick={back}
-          className="mb-5 flex items-center gap-1.5 text-[7px] font-black text-[#8C8276]"
+          className="mb-5 flex items-center gap-1.5 text-xs font-black text-[#8C8276]"
         >
           <ArrowLeft
             size={13}
@@ -2035,15 +2035,15 @@ function StepFrame({
       )}
 
       <div className="mb-6">
-        <p className="text-[7px] font-black tracking-[0.15em] text-[#B87700]">
+        <p className="text-xs font-black tracking-[0.15em] text-[#B87700]">
           {eyebrow}
         </p>
 
-        <h2 className="mt-2 text-[21px] font-black tracking-[-0.025em] text-black">
+        <h2 className="mt-2 text-2xl font-black tracking-[-0.025em] text-black">
           {title}
         </h2>
 
-        <p className="mt-2 max-w-[330px] text-[8.5px] leading-[1.7] text-[#8C8276]">
+        <p className="mt-2 max-w-[330px] text-sm leading-[1.7] text-[#8C8276]">
           {description}
         </p>
       </div>
@@ -2063,7 +2063,7 @@ function FieldLabel({
 }) {
   return (
     <div className="mb-4">
-      <label className="text-[7px] font-black tracking-[0.11em] text-[#8F8579]">
+      <label className="text-xs font-black tracking-[0.11em] text-[#8F8579]">
         {label}
       </label>
 
@@ -2085,7 +2085,7 @@ function ContinueButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="mt-5 h-[52px] w-full rounded-[15px] bg-[#FFB000] text-[9px] font-black text-black transition active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-[#E7E1D7] disabled:text-[#AAA095]"
+      className="mt-5 h-[52px] w-full rounded-[15px] bg-[#FFB000] text-sm font-black text-black transition active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-[#E7E1D7] disabled:text-[#756B60]"
     >
       CONTINUE
     </button>
@@ -2172,11 +2172,11 @@ function UploadField({
               />
             )}
 
-            <p className="mt-2 max-w-full break-all text-[6.5px] font-black text-[#4E854A]">
+            <p className="mt-2 max-w-full break-all text-xs font-black text-[#4E854A]">
               {file.name}
             </p>
 
-            <p className="mt-1 text-[6px] text-[#A39A90]">
+            <p className="mt-1 text-xs text-[#756B60]">
               Tap to replace
             </p>
           </>
@@ -2189,11 +2189,11 @@ function UploadField({
               />
             </div>
 
-            <p className="mt-2 text-[7px] font-black text-black">
+            <p className="mt-2 text-xs font-black text-black">
               {title}
             </p>
 
-            <p className="mt-1 text-[6px] text-[#A39A90]">
+            <p className="mt-1 text-xs text-[#756B60]">
               Tap to upload
             </p>
           </>
@@ -2213,11 +2213,11 @@ function ReviewItem({
 }) {
   return (
     <div className="rounded-[14px] border border-[#EEE4D5] bg-[#FFF9EE] px-3.5 py-3">
-      <p className="text-[6px] font-black tracking-[0.1em] text-[#A0968A]">
+      <p className="text-xs font-black tracking-[0.1em] text-[#A0968A]">
         {label.toUpperCase()}
       </p>
 
-      <p className="mt-1 break-words text-[8px] font-black leading-[1.5] text-black">
+      <p className="mt-1 break-words text-sm font-black leading-[1.5] text-black">
         {value || "—"}
       </p>
     </div>

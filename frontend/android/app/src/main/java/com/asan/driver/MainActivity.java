@@ -130,10 +130,15 @@ public class MainActivity extends BridgeActivity {
 
     private void startLocationService() {
         Intent serviceIntent = new Intent(this, LocationService.class);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            ContextCompat.startForegroundService(this, serviceIntent);
-        } else {
-            startService(serviceIntent);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                ContextCompat.startForegroundService(this, serviceIntent);
+            } else {
+                startService(serviceIntent);
+            }
+        } catch (SecurityException | IllegalStateException error) {
+            Log.e("MainActivity", "Location service could not start", error);
+            Toast.makeText(this, "Tracking could not start. Check location permissions and reopen the app.", Toast.LENGTH_LONG).show();
         }
     }
 

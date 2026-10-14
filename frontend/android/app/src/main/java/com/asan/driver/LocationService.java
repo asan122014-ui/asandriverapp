@@ -58,10 +58,17 @@ public class LocationService extends Service {
                 .setAutoCancel(true)
                 .build();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
-        } else {
-            startForeground(1, notification);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
+            } else {
+                startForeground(1, notification);
+            }
+        } catch (SecurityException | IllegalStateException error) {
+            Log.e("LocationService", "Foreground tracking rejected by Android", error);
+            android.widget.Toast.makeText(this, "Tracking unavailable. Check location permissions and reopen the app.", android.widget.Toast.LENGTH_LONG).show();
+            stopSelf();
+            return START_NOT_STICKY;
         }
 
         startLocationUpdates();

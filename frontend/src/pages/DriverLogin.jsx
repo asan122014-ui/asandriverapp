@@ -2,6 +2,9 @@ import {
   useEffect,
   useRef,
   useState,
+  Children,
+  cloneElement,
+  isValidElement,
 } from "react";
 
 import {
@@ -21,6 +24,7 @@ import toast from "react-hot-toast";
 import autoIcon from "../assets/auto.jpg";
 import axios from "../utils/axiosInstance";
 import MapPicker from "../components/MapPicker";
+import { registrationErrors as getRegistrationErrors, uploadError, validOtp, normalizeCredential } from "../utils/driverRegistrationValidation";
 
 /* =========================================================
    DRIVER LOGIN / SIGNUP
@@ -271,77 +275,30 @@ function DriverLogin() {
         .toLowerCase()
     );
 
-  const isValidName = (
-    value
-  ) =>
-    /^[a-zA-Z\s]+$/.test(
-      String(
-        value || ""
-      ).trim()
-    ) &&
-    String(
-      value || ""
-    ).trim().length >=
-      2;
-
-  const isValidPhone = (
-    value
-  ) =>
-    /^[6-9]\d{9}$/.test(
-      String(
-        value || ""
-      )
-    );
-
-  const isValidOtp = (
-    value
-  ) =>
-    /^\d{6}$/.test(
-      String(
-        value || ""
-      )
-    );
-
-  const isValidLicenseNumber = (
-    value
-  ) =>
-    /^[A-Z0-9]{8,20}$/.test(
-      String(
-        value || ""
-      )
-        .trim()
-        .toUpperCase()
-    );
-
-  const isValidVehicleNumber = (
-    value
-  ) => {
-    const normalized =
-      String(
-        value || ""
-      )
-        .replace(
-          /\s+/g,
-          ""
-        )
-        .replace(
-          /-/g,
-          ""
-        )
-        .toUpperCase();
-
-    return /^[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}$/.test(
-      normalized
-    );
+  const [attemptedStep, setAttemptedStep] = useState(0);
+  const [registrationServerError, setRegistrationServerError] = useState("");
+  const registrationErrors = getRegistrationErrors({ name, phone, email, licenseNumber, vehicleNumber, vehicleType, vehicleModel });
+  const isValidName = () => !registrationErrors.name;
+  const isValidPhone = () => !registrationErrors.phone;
+  const isValidOtp = validOtp;
+  const isValidLicenseNumber = () => !registrationErrors.licenseNumber;
+  const isValidVehicleNumber = () => !registrationErrors.vehicleNumber;
+  const isValidVehicleType = () => !registrationErrors.vehicleType && !registrationErrors.vehicleModel;
+  const uploadLabels = {"licenseFront": "License front", "licenseBack": "License back", "rcFront": "RC front", "rcBack": "RC back", "insurance": "Insurance certificate", "idFront": "Identity document front", "idBack": "Identity document back"};
+  const requiredUploads = { licenseFront, licenseBack, rcFront, rcBack, insurance: insuranceFile, idFront, idBack, profilePhoto };
+  const stepErrors = {
+    1: [registrationErrors.name, registrationErrors.phone, registrationErrors.email],
+    2: [!address.trim() || !Number.isFinite(latitude) || !Number.isFinite(longitude) ? "Select your home location on the map." : ""],
+    3: [registrationErrors.licenseNumber, registrationErrors.vehicleNumber, registrationErrors.vehicleType, registrationErrors.vehicleModel, ...["licenseFront", "licenseBack", "rcFront", "rcBack", "insurance"].map((key) => uploadError(requiredUploads[key]) ? `${uploadLabels[key]}: ${uploadError(requiredUploads[key])}` : "")],
+    4: [!selectedId ? "Select your identity document type." : "", ...["idFront", "idBack"].map((key) => uploadError(requiredUploads[key]) ? `${uploadLabels[key]}: ${uploadError(requiredUploads[key])}` : "")],
+    6: [uploadError(profilePhoto)],
+    7: [!validOtp(registerOtp) ? "Enter the 6-digit verification code using numbers only." : ""],
   };
-
-  const isValidVehicleType = (
-    value
-  ) =>
-    String(
-      value || ""
-    ).trim().length >=
-    2;
+  const continueSignup = (step) => {
+    setAttemptedStep(step);
+    setRegistrationServerError("");
+    if (!(stepErrors[step] || []).some(Boolean)) setSignupStep(step + 1);
+  };
 
   /* =======================================================
      STEP VALIDATION
@@ -722,6 +679,10 @@ function DriverLogin() {
 
   const handleSendRegisterOtp =
     async () => {
+      setAttemptedStep(6);
+      setRegistrationServerError("");
+      if ((stepErrors[6] || []).some(Boolean)) return;
+
       if (
         !profilePhoto
       ) {
@@ -779,6 +740,7 @@ function DriverLogin() {
       } catch (
         error
       ) {
+        setRegistrationServerError(error?.response?.data?.message || "Unable to submit. Please try again.");
         console.error(
           "SEND REGISTER OTP ERROR:",
           error?.response
@@ -805,6 +767,10 @@ function DriverLogin() {
 
   const handleCompleteRegistration =
     async () => {
+      setAttemptedStep(7);
+      setRegistrationServerError("");
+      if ((stepErrors[7] || []).some(Boolean)) return;
+
       if (
         !isValidOtp(
           registerOtp
@@ -991,6 +957,7 @@ function DriverLogin() {
       } catch (
         error
       ) {
+        setRegistrationServerError(error?.response?.data?.message || "Unable to submit. Please try again.");
         console.error(
           "REGISTER DRIVER ERROR:",
           error?.response
@@ -1434,6 +1401,8 @@ function DriverLogin() {
                     </div>
                   </div>
 
+                  {registrationServerError && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{registrationServerError}</p>}
+                  {attemptedStep === signupStep && (stepErrors[signupStep] || []).some(Boolean) && <div role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700"><p className="font-bold">Please correct these details:</p><ul className="mt-1 list-disc pl-5">{(stepErrors[signupStep] || []).filter(Boolean).map((message) => <li key={message}>{message}</li>)}</ul></div>}
                   {/* STEP 1 */}
 
                   {signupStep === 1 && (
@@ -1442,7 +1411,7 @@ function DriverLogin() {
                       title="Start with the basics."
                       description="Tell us who you are. Your email becomes your secure OTP login identity."
                     >
-                      <FieldLabel label="FULL NAME">
+                      <FieldLabel label="FULL NAME" error={registrationErrors.name} showError={attemptedStep === 1}>
                         <input
                           type="text"
                           placeholder="Enter your full name"
@@ -1456,29 +1425,22 @@ function DriverLogin() {
                         />
                       </FieldLabel>
 
-                      <FieldLabel label="PHONE NUMBER">
+                      <FieldLabel label="PHONE NUMBER" error={registrationErrors.phone} showError={attemptedStep === 1}>
                         <input
                           type="tel"
+                          inputMode="numeric"
                           placeholder="10-digit mobile number"
                           value={phone}
                           onChange={(e) =>
                             setPhone(
                               e.target.value
-                                .replace(
-                                  /\D/g,
-                                  ""
-                                )
-                                .slice(
-                                  0,
-                                  10
-                                )
                             )
                           }
                           className={inputClass}
                         />
                       </FieldLabel>
 
-                      <FieldLabel label="EMAIL ADDRESS">
+                      <FieldLabel label="EMAIL ADDRESS" error={registrationErrors.email} showError={attemptedStep === 1}>
                         <input
                           type="email"
                           placeholder="captain@example.com"
@@ -1496,13 +1458,7 @@ function DriverLogin() {
                         </p>
                       </FieldLabel>
 
-                      <ContinueButton
-                        disabled={
-                          !isStep1Valid
-                        }
-                        onClick={() =>
-                          setSignupStep(2)
-                        }
+                      <ContinueButton disabled={loading} onClick={() => continueSignup(1)}
                       />
                     </StepFrame>
                   )}
@@ -1556,13 +1512,7 @@ function DriverLogin() {
                         </div>
                       )}
 
-                      <ContinueButton
-                        disabled={
-                          !isStep2Valid
-                        }
-                        onClick={() =>
-                          setSignupStep(3)
-                        }
+                      <ContinueButton disabled={loading} onClick={() => continueSignup(2)}
                       />
                     </StepFrame>
                   )}
@@ -1579,7 +1529,7 @@ function DriverLogin() {
                       }
                     >
                       <div className="grid grid-cols-2 gap-2">
-                        <UploadField
+                        <UploadField showMissing={attemptedStep === signupStep}
                           title="License Front"
                           file={
                             licenseFront
@@ -1592,7 +1542,7 @@ function DriverLogin() {
                           }
                         />
 
-                        <UploadField
+                        <UploadField showMissing={attemptedStep === signupStep}
                           title="License Back"
                           file={
                             licenseBack
@@ -1606,7 +1556,7 @@ function DriverLogin() {
                         />
                       </div>
 
-                      <FieldLabel label="LICENSE NUMBER">
+                      <FieldLabel label="LICENSE NUMBER" error={registrationErrors.licenseNumber} showError={attemptedStep === 3}>
                         <input
                           type="text"
                           placeholder="License number"
@@ -1621,7 +1571,7 @@ function DriverLogin() {
                       </FieldLabel>
 
                       <div className="mt-4 grid grid-cols-2 gap-2">
-                        <UploadField
+                        <UploadField showMissing={attemptedStep === signupStep}
                           title="RC Front"
                           file={
                             rcFront
@@ -1634,7 +1584,7 @@ function DriverLogin() {
                           }
                         />
 
-                        <UploadField
+                        <UploadField showMissing={attemptedStep === signupStep}
                           title="RC Back"
                           file={
                             rcBack
@@ -1648,7 +1598,7 @@ function DriverLogin() {
                         />
                       </div>
 
-                      <FieldLabel label="VEHICLE NUMBER">
+                      <FieldLabel label="VEHICLE NUMBER" error={registrationErrors.vehicleNumber} showError={attemptedStep === 3}>
                         <input
                           type="text"
                           placeholder="TS09AB1234"
@@ -1662,21 +1612,13 @@ function DriverLogin() {
                         />
                       </FieldLabel>
 
-                      <FieldLabel label="VEHICLE TYPE">
-                        <input
-                          type="text"
-                          placeholder="Auto / Van / Car"
-                          value={vehicleType}
-                          onChange={(e) =>
-                            setVehicleType(
-                              e.target.value
-                            )
-                          }
-                          className={inputClass}
-                        />
+                      <FieldLabel label="VEHICLE TYPE" error={registrationErrors.vehicleType} showError={attemptedStep === 3}>
+                        <select value={vehicleType} onChange={(e) => setVehicleType(e.target.value)} className={inputClass}>
+                          <option value="">Select vehicle type</option><option value="Auto">Auto</option><option value="Van">Van</option>
+                        </select>
                       </FieldLabel>
 
-                      <FieldLabel label="VEHICLE MODEL">
+                      <FieldLabel label="VEHICLE MODEL" error={registrationErrors.vehicleModel} showError={attemptedStep === 3}>
                         <input
                           type="text"
                           placeholder="Optional"
@@ -1691,7 +1633,7 @@ function DriverLogin() {
                       </FieldLabel>
 
                       <div className="mt-4">
-                        <UploadField
+                        <UploadField showMissing={attemptedStep === signupStep}
                           title="Insurance Certificate"
                           file={
                             insuranceFile
@@ -1706,13 +1648,7 @@ function DriverLogin() {
                         />
                       </div>
 
-                      <ContinueButton
-                        disabled={
-                          !isStep3Valid
-                        }
-                        onClick={() =>
-                          setSignupStep(4)
-                        }
+                      <ContinueButton disabled={loading} onClick={() => continueSignup(3)}
                       />
                     </StepFrame>
                   )}
@@ -1754,7 +1690,7 @@ function DriverLogin() {
                       </div>
 
                       <div className="mt-4 grid grid-cols-2 gap-2">
-                        <UploadField
+                        <UploadField showMissing={attemptedStep === signupStep}
                           title="ID Front"
                           file={idFront}
                           inputRef={
@@ -1765,7 +1701,7 @@ function DriverLogin() {
                           }
                         />
 
-                        <UploadField
+                        <UploadField showMissing={attemptedStep === signupStep}
                           title="ID Back"
                           file={idBack}
                           inputRef={
@@ -1777,13 +1713,7 @@ function DriverLogin() {
                         />
                       </div>
 
-                      <ContinueButton
-                        disabled={
-                          !isStep4Valid
-                        }
-                        onClick={() =>
-                          setSignupStep(5)
-                        }
+                      <ContinueButton disabled={loading} onClick={() => continueSignup(4)}
                       />
                     </StepFrame>
                   )}
@@ -1855,7 +1785,7 @@ function DriverLogin() {
                         setSignupStep(5)
                       }
                     >
-                      <UploadField
+                      <UploadField showMissing={attemptedStep === signupStep}
                         title="Profile Photo"
                         file={
                           profilePhoto
@@ -1873,7 +1803,6 @@ function DriverLogin() {
                       <button
                         type="button"
                         disabled={
-                          !profilePhoto ||
                           loading
                         }
                         onClick={
@@ -1909,10 +1838,7 @@ function DriverLogin() {
                         </p>
                       </div>
 
-                      <div className="mt-4">
-                        <label className="text-xs font-black tracking-[0.11em] text-[#8F8579]">
-                          6-DIGIT OTP
-                        </label>
+                      <FieldLabel label="6-DIGIT OTP" error={!validOtp(registerOtp) ? "Enter the 6-digit verification code using numbers only." : ""} showError={attemptedStep === 7}>
 
                         <input
                           type="text"
@@ -1935,15 +1861,12 @@ function DriverLogin() {
                           placeholder="000000"
                           className={otpInputClass}
                         />
-                      </div>
+                      </FieldLabel>
 
                       <button
                         type="button"
                         disabled={
-                          loading ||
-                          !isValidOtp(
-                            registerOtp
-                          )
+                          loading
                         }
                         onClick={
                           handleCompleteRegistration
@@ -2057,19 +1980,15 @@ function StepFrame({
    FIELD LABEL
 ========================================================= */
 
-function FieldLabel({
-  label,
-  children,
-}) {
-  return (
-    <div className="mb-4">
-      <label className="text-xs font-black tracking-[0.11em] text-[#8F8579]">
-        {label}
-      </label>
-
-      {children}
-    </div>
-  );
+function FieldLabel({ label, children, error, showError = false }) {
+  const [touched, setTouched] = useState(false);
+  const visibleError = (touched || showError) && error;
+  const id = `signup-${label.toLowerCase().replace(/\s+/g, "-")}`;
+  return <div className="mb-4" onBlur={() => setTouched(true)}>
+    <label htmlFor={id} className="text-xs font-black tracking-[0.11em] text-[#8F8579]">{label}</label>
+    {Children.map(children, (child) => isValidElement(child) && ["input", "select"].includes(child.type) ? cloneElement(child, { id, "aria-invalid": Boolean(visibleError), "aria-describedby": visibleError ? `${id}-error` : undefined, className: `${child.props.className || ""} ${visibleError ? "!border-red-500" : ""}` }) : child)}
+    {visibleError && <p id={`${id}-error`} role="alert" className="mt-2 text-sm text-red-700">{error}</p>}
+  </div>;
 }
 
 /* =========================================================
@@ -2097,6 +2016,7 @@ function ContinueButton({
 ========================================================= */
 
 function UploadField({
+  showMissing = false,
   title,
   file,
   inputRef,
@@ -2104,6 +2024,7 @@ function UploadField({
   circular = false,
   wide = false,
 }) {
+  const [fileError, setFileError] = useState("");
   const [
     previewUrl,
     setPreviewUrl,
@@ -2141,14 +2062,14 @@ function UploadField({
       <input
         type="file"
         hidden
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
         ref={inputRef}
-        onChange={(e) =>
-          setFile(
-            e.target.files?.[0] ||
-              null
-          )
-        }
+        onChange={(e) => {
+          const next = e.target.files?.[0]; if (!next) return;
+          const error = uploadError(next); setFileError(error);
+          if (!error) setFile(next);
+          e.target.value = "";
+        }}
       />
 
       <button
@@ -2199,6 +2120,7 @@ function UploadField({
           </>
         )}
       </button>
+      {(fileError || (showMissing && uploadError(file))) && <p role="alert" className="mt-2 text-sm text-red-700">{fileError || uploadError(file)}</p>}
     </div>
   );
 }

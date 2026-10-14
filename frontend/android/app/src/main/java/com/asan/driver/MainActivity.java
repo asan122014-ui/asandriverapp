@@ -12,6 +12,7 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.WindowCompat;
 import com.getcapacitor.BridgeActivity;
 import com.google.android.gms.common.api.ResolvableApiException;
 import com.google.android.gms.location.LocationRequest;
@@ -39,6 +40,13 @@ public class MainActivity extends BridgeActivity {
         setTheme(R.style.AppTheme_NoActionBar);
 
         super.onCreate(savedInstanceState);
+        WindowCompat.enableEdgeToEdge(getWindow());
+        // Capacitor SystemBars owns system-bar, cutout and IME insets on the WebView
+        // parent. Keep the normal viewport so padding is applied exactly once.
+        WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
+                .setAppearanceLightStatusBars(true);
+        WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
+                .setAppearanceLightNavigationBars(true);
 
         // 2. Professional Setup: FCM Token, Permissions, and GPS Settings
         fetchFcmToken();

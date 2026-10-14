@@ -1,5 +1,11 @@
 {
   "appId": "com.AsanDriver.app",
-  "appName": "Asan Captain",
-  "webDir": "dist"
+  "appName": "Asanrides Captain",
+  "webDir": "dist",
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css",
+      "style": "LIGHT"
+    }
+  }
 }

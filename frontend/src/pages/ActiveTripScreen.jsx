@@ -1,3 +1,5 @@
+import { registerPlugin } from "@capacitor/core";
+const TripTracking = registerPlugin("TripTracking");
 import {
   useState,
   useEffect,
@@ -1514,8 +1516,9 @@ function ActiveTripScreen({
           );
         }
 
-        const permission =
-          await Geolocation.requestPermissions();
+        const existingPermission = await Geolocation.checkPermissions();
+        if (existingPermission.location !== "granted" && existingPermission.coarseLocation !== "granted" && !window.confirm("ASAN Captain uses your location to share live ride progress with parents during trip tracking, including while the app is in the background. Location is not needed to browse the rest of the app. Continue to allow location?")) return false;
+        const permission = await Geolocation.requestPermissions();
 
         const granted =
           permission.location ===
@@ -1524,6 +1527,7 @@ function ActiveTripScreen({
             "granted";
 
         if (granted) {
+          if (Capacitor.getPlatform() === "android") await TripTracking.start();
           return true;
         }
 
@@ -1618,6 +1622,7 @@ function ActiveTripScreen({
     useCallback(
       async () => {
         try {
+          if (Capacitor.getPlatform() === "android") await TripTracking.stop();
           if (
             backgroundWatchId.current !==
             null

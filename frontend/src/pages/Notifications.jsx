@@ -1,3 +1,4 @@
+import { notificationDestination } from "../utils/notificationDestination";
 import {
   useState,
   useEffect,
@@ -1191,6 +1192,7 @@ function Notifications() {
                               </span>
                             </div>
 
+                            <button type="button" onClick={async () => { await markSingleAsRead(notification._id); navigate(notificationDestination(notification, "driver")); }} className="mt-2 min-h-11 rounded-xl border border-[#EBDCA9] px-3 text-sm font-bold">Open details</button>
                             {/* MESSAGE */}
 
                             <p className="mt-2 text-[9px] leading-[1.65] text-[#776E64]">

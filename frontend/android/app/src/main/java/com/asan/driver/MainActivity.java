@@ -39,8 +39,10 @@ public class MainActivity extends BridgeActivity {
         // This allows us to use a full-screen legacy splash background without the Android 12 circular mask.
         setTheme(R.style.AppTheme_NoActionBar);
 
+        registerPlugin(TripTrackingPlugin.class);
         super.onCreate(savedInstanceState);
         WindowCompat.enableEdgeToEdge(getWindow());
+        SafeWindowInsets.install((android.view.View) getBridge().getWebView().getParent());
         // Capacitor SystemBars owns system-bar, cutout and IME insets on the WebView
         // parent. Keep the normal viewport so padding is applied exactly once.
         WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
@@ -50,8 +52,7 @@ public class MainActivity extends BridgeActivity {
 
         // 2. Professional Setup: FCM Token, Permissions, and GPS Settings
         fetchFcmToken();
-        requestAppPermissions();
-        createLocationRequest();
+        // ActiveTripScreen requests location when the driver opens trip tracking.
 
         // 3. Handle Back Button with double press to exit
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {

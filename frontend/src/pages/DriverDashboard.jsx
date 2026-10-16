@@ -69,6 +69,7 @@ function DriverDashboard() {
   const [bookingOfferBusy, setBookingOfferBusy] = useState("");
   const [bookingOfferError, setBookingOfferError] = useState("");
   const [bookingOfferNotice, setBookingOfferNotice] = useState("");
+  const [dashboardError, setDashboardError] = useState("");
   const [bookingOffersLoading, setBookingOffersLoading] = useState(false);
 
   const [
@@ -242,8 +243,8 @@ function DriverDashboard() {
       socketBookingOffersRef.current.delete(requestId);
       setBookingOffers((current) => current.filter((offer) => offer.requestId !== requestId));
       setActiveBookingOfferId((activeId) => activeId === requestId ? bookingOffers.find((offer) => offer.requestId !== requestId)?.requestId || null : activeId);
-      if (action === "accept") setBookingOfferNotice("Ride request accepted. The parent has been notified.");
-      else await refreshBookingOffers();
+      if (action === "accept") setBookingOfferNotice("Request accepted. Waiting for the parent to complete payment or activate an eligible coupon.");
+      else { setBookingOfferNotice("Request declined. The parent has been notified."); await refreshBookingOffers(); }
     } catch (error) {
       setBookingOfferError(error?.response?.data?.message || "Unable to respond to this ride request.");
       await refreshBookingOffers();
@@ -476,6 +477,7 @@ function DriverDashboard() {
               `/driver/dashboard/${driver.driverId}`
             );
 
+          setDashboardError("");
           setDriverData(
             res?.data?.data ||
               null
@@ -488,9 +490,7 @@ function DriverDashboard() {
               error
           );
 
-          setDriverData(
-            null
-          );
+          setDashboardError("Dashboard could not refresh. Your last loaded details are preserved.");
         }
       },
       [
@@ -826,6 +826,9 @@ function DriverDashboard() {
       }
     );
 
+    const refreshUnread = async () => { try { const response = await axios.get("/notifications?countOnly=true"); setUnreadCount(response.data?.unreadCount || 0); } catch { /* Keep the last confirmed count while offline. */ } };
+    socket.on("notification", refreshUnread);
+    window.addEventListener("asan:notification", refreshUnread);
     socket.on("booking_driver_offer", handleBookingDriverOffer);
     socket.on("booking_request_cancelled", handleBookingOfferCancelled);
 
@@ -1061,6 +1064,7 @@ function DriverDashboard() {
 
       socket.io.removeAllListeners();
 
+      window.removeEventListener("asan:notification", refreshUnread);
       socket.disconnect();
 
       socketRef.current =
@@ -1758,24 +1762,24 @@ function DriverDashboard() {
 
       {activeBookingOffer && (
         <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/55 p-0 backdrop-blur-[3px] sm:items-center sm:p-5" role="presentation">
-          <section className="w-full max-w-[440px] overflow-hidden rounded-t-[28px] border border-[#EED69B] bg-[#FFFDF8] shadow-[0_24px_80px_rgba(0,0,0,0.28)] sm:rounded-[28px]" role="dialog" aria-modal="true" aria-labelledby="booking-offer-title">
+          <section className="w-full max-w-[440px] max-h-[85dvh] overflow-y-auto rounded-t-[28px] border border-[#EED69B] bg-[#FFFDF8] shadow-[0_24px_80px_rgba(0,0,0,0.28)] sm:rounded-[28px]" role="dialog" aria-modal="true" aria-labelledby="booking-offer-title">
             <div className="h-1.5 bg-[#FFB000]" />
             <div className="p-5 sm:p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-[9px] font-black tracking-[0.18em] text-[#B87700]">NEW ROUTE SERVICE REQUEST</p>
                   <h2 id="booking-offer-title" className="mt-1 text-[21px] font-black text-black">You have a new ride request</h2>
-                  <p className="mt-1 text-[11px] text-[#8C8276]">Check the student, schedule and route details before responding.</p>
+                  <p className="mt-1 text-[11px] text-[#8C8276]">Review every child, the pickup times and monthly distance charge before accepting.</p>
                 </div>
                 <div className="shrink-0 rounded-[16px] bg-[#FFF1C8] px-3 py-2 text-right">
-                  <p className="text-[7px] font-black tracking-[0.12em] text-[#8C6A18]">MONTHLY ROUTE AMOUNT</p>
+                  <p className="text-[7px] font-black tracking-[0.12em] text-[#8C6A18]">MONTHLY DISTANCE CHARGE</p>
                   <p className="mt-0.5 text-[19px] font-black text-[#936400]">₹{Number(activeBookingOffer.monthlyRouteAmount || 0).toLocaleString("en-IN")}</p>
                   <p className="mt-0.5 text-[7px] font-semibold text-[#8C6A18]">Distance charges only</p>
                 </div>
               </div>
               <div className="mt-5 rounded-[18px] border border-[#EFE4D0] bg-white p-4">
                 <p className="text-[8px] font-black tracking-[0.14em] text-[#95897C]">STUDENT</p>
-                <p className="mt-1 text-[15px] font-black text-black">{activeBookingOffer.child?.name || "Student"}</p>
+                <p className="mt-1 text-[15px] font-black text-black">{activeBookingOffer.children?.map((child) => child.name).join(", ") || activeBookingOffer.child?.name || "Student"}</p>
                 <p className="mt-0.5 text-[10px] text-[#766D61]">{activeBookingOffer.child?.school || "School not specified"}{activeBookingOffer.child?.grade ? ` · ${activeBookingOffer.child.grade}` : ""}</p>
                 <div className="my-3 border-t border-dashed border-[#E8DCC8]" />
                 <div className="space-y-2.5 text-[10px] text-[#51483B]">
@@ -1950,6 +1954,7 @@ function DriverDashboard() {
             ================================================= */}
 
             <main className="relative z-10 space-y-4 px-4">
+              {dashboardError && <div role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700"><p>{dashboardError}</p><button type="button" onClick={fetchDashboard} className="mt-2 min-h-11 font-bold underline">Retry dashboard</button></div>}
 
               {/* =================================================
                   DUTY HEADER
@@ -2003,11 +2008,11 @@ function DriverDashboard() {
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="text-[8px] font-bold tracking-[0.12em] text-[#95897C]">ROUTE SERVICE REQUEST</p>
-                            <h3 className="mt-1 text-[16px] font-black text-black">{offer.child?.name || "Student"}</h3>
+                            <h3 className="mt-1 text-[16px] font-black text-black">{offer.children?.map((child) => child.name).join(", ") || offer.child?.name || "Student"}</h3>
                             <p className="mt-0.5 truncate text-[9px] text-[#8C8276]">{offer.child?.school || "School route"}</p>
                             <p className="mt-1 text-[8px] font-bold text-[#9A6A00]">Sent to ASAN ID {offer.targetDriverId || driver?.driverId || "this driver"}</p>
                           </div>
-                          <p className="shrink-0 text-right text-[17px] font-black text-[#936400]">₹{Number(offer.monthlyRouteAmount || 0).toLocaleString("en-IN")}<span className="block text-[7px] font-bold text-[#95897C]">MONTHLY ROUTE AMOUNT</span><span className="block text-[7px] font-semibold text-[#8C6A18]">Distance charges only</span></p>
+                          <p className="shrink-0 text-right text-[17px] font-black text-[#936400]">₹{Number(offer.monthlyRouteAmount || 0).toLocaleString("en-IN")}<span className="block text-[7px] font-bold text-[#95897C]">MONTHLY DISTANCE CHARGE</span><span className="block text-[7px] font-semibold text-[#8C6A18]">Distance charges only</span></p>
                         </div>
                         <div className="mt-3 space-y-2 rounded-[14px] bg-[#FFF8E8] p-3 text-[9px] text-[#51483B]">
                           <p><b>Home pickup:</b> {offer.route?.pickup || "—"}{offer.route?.pickupTime ? ` · ${offer.route.pickupTime}` : ""}</p>

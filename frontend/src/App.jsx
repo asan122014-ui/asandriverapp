@@ -1,3 +1,5 @@
+import ConnectionNotice from "./components/ConnectionNotice";
+import NotificationAccess, { requestExplainedPushPermission, requestExplainedWebPermission } from "./components/NotificationAccess";
 import {
   useEffect,
   useMemo,
@@ -411,6 +413,8 @@ function App() {
     let registrationListener =
       null;
 
+    let receivedListener = null;
+    let actionListener = null;
     let registrationErrorListener =
       null;
 
@@ -492,7 +496,7 @@ function App() {
       async () => {
         try {
           const permissionResult =
-            await PushNotifications.requestPermissions();
+            await (async () => { const current = await PushNotifications.checkPermissions(); return current.receive === "prompt" ? requestExplainedPushPermission(PushNotifications) : current; })();
 
           if (
             permissionResult.receive !==
@@ -548,6 +552,8 @@ function App() {
               }
             );
 
+          receivedListener = await PushNotifications.addListener("pushNotificationReceived", (notification) => window.dispatchEvent(new CustomEvent("asan:notification", { detail: notification })));
+          actionListener = await PushNotifications.addListener("pushNotificationActionPerformed", (action) => window.dispatchEvent(new CustomEvent("asan:notification-click", { detail: action })));
           await PushNotifications.register();
         } catch (
           error
@@ -603,7 +609,7 @@ function App() {
             "default"
           ) {
             permission =
-              await Notification.requestPermission();
+              await requestExplainedWebPermission();
           }
 
           if (
@@ -702,6 +708,8 @@ function App() {
       cancelled =
         true;
 
+      receivedListener?.remove();
+      actionListener?.remove();
       if (
         registrationListener
       ) {
@@ -734,6 +742,7 @@ function App() {
 
   return (
     <>
+      <ConnectionNotice /><NotificationAccess role="driver" readNotification={(id) => axios.put(`/notifications/${id}/read`)} />
       <Toaster
         position="top-center"
       />

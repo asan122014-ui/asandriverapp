@@ -1,3 +1,4 @@
+import InstituteAssignments from '../components/InstituteAssignments';
 import {
   useState,
   useEffect,
@@ -158,7 +159,10 @@ function DriverDashboard() {
   const iceCandidateQueueRef =
     useRef({});
 
+  const instituteManaged = driver?.accountSource === 'institute';
+
   const refreshBookingOffers = useCallback(async ({ manual = false } = {}) => {
+    if (driver?.accountSource === "institute") { setBookingOffers([]); return; }
     if (!driver?.driverId || !localStorage.getItem("accessToken")) {
       setBookingOfferError("Your driver session is missing. Sign in again to check ride requests.");
       return;
@@ -1973,6 +1977,7 @@ function DriverDashboard() {
                 </div>
               </div>
 
+              {instituteManaged ? <InstituteAssignments /> : <>
               <button
                 type="button"
                 onClick={() => refreshBookingOffers({ manual: true })}
@@ -2030,6 +2035,8 @@ function DriverDashboard() {
                   ))}
                 </section>
               )}
+
+              </>}
 
               {/* =================================================
                   PRIMARY DUTY CARD

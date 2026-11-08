@@ -1,3 +1,4 @@
+import { bindSessionSocket } from '../session/session';
 import { registerPlugin } from "@capacitor/core";
 const TripTracking = registerPlugin("TripTracking");
 import {
@@ -702,6 +703,8 @@ function ActiveTripScreen({
       token,
     };
 
+    const unbindSessionSocket = bindSessionSocket(socket);
+
     const joinDriverRoom =
       () => {
         socket.emit(
@@ -750,6 +753,7 @@ function ActiveTripScreen({
         handleConnectError
       );
 
+      unbindSessionSocket();
       socket.disconnect();
     };
   }, [

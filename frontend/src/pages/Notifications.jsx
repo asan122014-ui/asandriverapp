@@ -1,3 +1,4 @@
+import { bindSessionSocket } from '../session/session';
 import { notificationDestination } from "../utils/notificationDestination";
 import {
   useState,
@@ -559,6 +560,7 @@ function Notifications() {
             20000,
         }
       );
+    const unbindSessionSocket = bindSessionSocket(socket);
 
     socketRef.current =
       socket;
@@ -751,6 +753,7 @@ function Notifications() {
 
       socket.io.removeAllListeners();
 
+      unbindSessionSocket();
       socket.disconnect();
 
       socketRef.current =

@@ -1,3 +1,4 @@
+import { bindSessionSocket } from '../session/session';
 import InstituteAssignments from '../components/InstituteAssignments';
 import {
   useState,
@@ -807,6 +808,7 @@ function DriverDashboard() {
             20000,
         }
       );
+    const unbindSessionSocket = bindSessionSocket(socket);
 
     socketRef.current =
       socket;
@@ -1069,6 +1071,7 @@ function DriverDashboard() {
       socket.io.removeAllListeners();
 
       window.removeEventListener("asan:notification", refreshUnread);
+      unbindSessionSocket();
       socket.disconnect();
 
       socketRef.current =

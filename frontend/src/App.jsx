@@ -158,6 +158,8 @@ function App() {
     location.pathname,
   ]);
 
+  const [sessionRevision,setSessionRevision]=useState(0);
+  useEffect(()=>{const update=()=>setSessionRevision(value=>value+1);window.addEventListener('asan:session-updated',update);return ()=>window.removeEventListener('asan:session-updated',update);},[]);
   /* =======================================================
      CURRENT DRIVER SESSION
   ======================================================= */
@@ -252,7 +254,7 @@ function App() {
           parsedRejection,
       };
     }, [
-      location.pathname,
+      location.pathname, sessionRevision,
     ]);
 
   /* =======================================================

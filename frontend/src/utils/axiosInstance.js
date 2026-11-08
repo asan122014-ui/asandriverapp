@@ -1,3 +1,4 @@
+import { attachSession } from '../session/session';
 import axios from "axios";
 
 const axiosInstance = axios.create({
@@ -52,59 +53,7 @@ axiosInstance.interceptors.request.use(
    RESPONSE INTERCEPTOR
 ========================================================= */
 
-axiosInstance.interceptors.response.use(
-  (
-    response
-  ) =>
-    response,
-
-  (
-    error
-  ) => {
-    if (
-      error?.response
-        ?.status ===
-      401
-    ) {
-      console.error(
-        "Driver authentication failed:",
-        error?.response
-          ?.data
-      );
-
-      /*
-        Backend currently does not have
-        /api/auth/refresh.
-
-        So do NOT attempt refresh here.
-      */
-
-      localStorage.removeItem(
-        "accessToken"
-      );
-
-      localStorage.removeItem(
-        "refreshToken"
-      );
-
-      localStorage.removeItem(
-        "driver"
-      );
-
-      if (
-        window.location.pathname !==
-        "/DriverLogin"
-      ) {
-        window.location.href =
-          "/DriverLogin";
-      }
-    }
-
-    return Promise.reject(
-      error
-    );
-  }
-);
+attachSession(axiosInstance);
 
 // Share identical in-flight reads; do not cache completed responses or writes.
 const pendingReads = new Map();

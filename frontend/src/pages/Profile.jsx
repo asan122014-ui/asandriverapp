@@ -1,3 +1,4 @@
+import { session } from '../session/session';
 import {
   Car,
   Mail,
@@ -2040,6 +2041,7 @@ function Profile() {
             error
         );
       } finally {
+        await session.logout();
         localStorage.removeItem(
           "accessToken"
         );

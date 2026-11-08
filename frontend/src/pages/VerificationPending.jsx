@@ -1,3 +1,4 @@
+import { session } from '../session/session';
 import {
   useCallback,
   useEffect,
@@ -144,6 +145,7 @@ function VerificationPending() {
   const clearDriverSession =
     useCallback(
       () => {
+        void session.logout();
         localStorage.removeItem(
           "accessToken"
         );

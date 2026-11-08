@@ -1,3 +1,4 @@
+import { bindSessionSocket } from '../session/session';
 import {
   useState,
   useEffect,
@@ -169,6 +170,7 @@ function Trips() {
       reconnection: true,
       reconnectionAttempts: Infinity,
     });
+    const unbindSessionSocket = bindSessionSocket(socket);
     socket.on("connect", () => {
       socket.emit("join_driver_room", { driverId: driver.driverId });
     });
@@ -176,6 +178,7 @@ function Trips() {
 
     return () => {
       socket.off("driver_route_updated", fetchTrips);
+      unbindSessionSocket();
       socket.disconnect();
     };
   }, []);

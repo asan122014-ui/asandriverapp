@@ -1,3 +1,6 @@
+import useInstituteTransport from '../hooks/useInstituteTransport';
+import InstituteDutySequence from '../components/InstituteDutySequence';
+import {orderDutyStudents} from '../utils/instituteDutyPlan';
 import { bindSessionSocket } from '../session/session';
 import { registerPlugin } from "@capacitor/core";
 const TripTracking = registerPlugin("TripTracking");
@@ -676,6 +679,10 @@ function ActiveTripScreen({
       },
       []
     );
+
+  const instituteManaged = driver?.accountSource === 'institute';
+  const instituteDuty = useInstituteTransport(axios, '/institute-app/driver', instituteManaged);
+  const instituteRoutes = useMemo(() => [...(instituteDuty.data?.homeRoutes || []), ...(instituteDuty.data?.stopRoutes || [])], [instituteDuty.data]);
 
   useEffect(() => {
     driverRef.current =
@@ -1488,15 +1495,17 @@ function ActiveTripScreen({
   const visibleStudents =
     useMemo(
       () => {
+        const ordered = instituteManaged ? orderDutyStudents(students,instituteRoutes,isEveningTrip()) : students;
         return showAllStudents
-          ? students
-          : students.slice(
+          ? ordered
+          : ordered.slice(
               0,
               displayLimit
             );
       },
       [
         students,
+        instituteManaged, instituteRoutes, isEveningTrip,
         showAllStudents,
       ]
     );
@@ -2054,6 +2063,12 @@ function ActiveTripScreen({
           return null;
         }
 
+        if (instituteManaged) {
+          if (!instituteDuty.data) return null;
+          const first = orderDutyStudents(validStudents,instituteRoutes,isEveningTrip())[0];
+          return first ? {...first,phase:tripPhase} : null;
+        }
+
         const nearest =
           validStudents.reduce(
             (best, student) => {
@@ -2097,6 +2112,7 @@ function ActiveTripScreen({
       [
         tripPhase,
         getCoords,
+        instituteManaged, instituteDuty.data, instituteRoutes, isEveningTrip,
       ]
     );
 
@@ -4310,6 +4326,8 @@ function ActiveTripScreen({
             </div>
 
           </div>
+
+          {instituteManaged && <><InstituteDutySequence routes={instituteRoutes} evening={isEveningTrip()} />{instituteDuty.error && <p role="alert" className="my-3 rounded-xl bg-red-50 p-3 text-xs text-red-700">{instituteDuty.error} <button className="min-h-11 underline" onClick={instituteDuty.refresh}>Retry route plan</button></p>}</>}
 
           {/* NEXT STUDENT */}
 

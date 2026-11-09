@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-export default function useInstituteTransport(client, endpoint) {
+export default function useInstituteTransport(client, endpoint, enabled = true) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,6 +26,7 @@ export default function useInstituteTransport(client, endpoint) {
     }
   }, [client, endpoint]);
   useEffect(() => {
+    if (!enabled) return;
     active.current = true;
     const resume = () => { if (document.visibilityState !== 'hidden') void refresh(); };
     const initial = window.setTimeout(refresh, 0);
@@ -38,6 +39,6 @@ export default function useInstituteTransport(client, endpoint) {
       document.removeEventListener('visibilitychange', resume);
       request.current?.abort(); request.current = null;
     };
-  }, [refresh]);
+  }, [refresh, enabled]);
   return { data, error, loading, updatedAt, refresh };
 }

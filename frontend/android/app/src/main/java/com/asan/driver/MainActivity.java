@@ -6,14 +6,19 @@ import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.SystemClock;
+import android.webkit.WebView;
+import androidx.core.splashscreen.SplashScreen;
+import androidx.core.view.WindowCompat;
+import com.getcapacitor.WebViewListener;
 import android.util.Log;
 import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.core.view.WindowCompat;
 import com.getcapacitor.BridgeActivity;
+import com.AsanDriver.app.SessionVaultPlugin;
 import com.google.android.gms.common.api.ResolvableApiException;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationSettingsRequest;
@@ -32,14 +37,17 @@ public class MainActivity extends BridgeActivity {
     private static final int PERMISSION_REQUEST_CODE = 12345;
     private static final int BACKGROUND_LOCATION_PERMISSION_CODE = 12346;
     private long backPressedTime;
+    private boolean splashContentReady;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // 1. Switch from Splash Theme to App Theme manually
-        // This allows us to use a full-screen legacy splash background without the Android 12 circular mask.
-        setTheme(R.style.AppTheme_NoActionBar);
-
+        final long splashStarted = SystemClock.uptimeMillis();
+        SplashScreen splashScreen = SplashScreen.installSplashScreen(this);
+        splashScreen.setKeepOnScreenCondition(() -> !splashContentReady
+                && SystemClock.uptimeMillis() - splashStarted < 8000);
+        splashScreen.setOnExitAnimationListener(provider -> provider.remove());
         registerPlugin(TripTrackingPlugin.class);
+        registerPlugin(SessionVaultPlugin.class);
         super.onCreate(savedInstanceState);
         WindowCompat.enableEdgeToEdge(getWindow());
         SafeWindowInsets.install((android.view.View) getBridge().getWebView().getParent());
@@ -49,6 +57,14 @@ public class MainActivity extends BridgeActivity {
                 .setAppearanceLightStatusBars(true);
         WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
                 .setAppearanceLightNavigationBars(true);
+        getBridge().addWebViewListener(new WebViewListener() {
+            @Override
+            public void onPageLoaded(WebView webView) { splashContentReady = true; }
+            @Override
+            public void onReceivedError(WebView webView) { splashContentReady = true; }
+            @Override
+            public void onReceivedHttpError(WebView webView) { splashContentReady = true; }
+        });
 
         // 2. Professional Setup: FCM Token, Permissions, and GPS Settings
         fetchFcmToken();
